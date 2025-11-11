@@ -56,21 +56,22 @@ MyResearchAssistant/
 
 ## Requirements
 
+<pre>
 beautifulsoup4==4.14.2
-faiss-cpu==1.12.0
 faiss-gpu==1.7.2
 fitz==0.0.1.dev2
 numpy==2.3.4
-pymupdf4llm==0.1.8
 requests==2.32.5
 sentence_transformers==5.1.2
 tiktoken==0.12.0
 torch==2.9.0+cpu
 tqdm==4.67.1
-transformers==4.57.1
 trafilatura==2.0.0
-
-In addition, ollama and model files are required
+transformers==4.57.1
+</pre>
+Assumption: ollama and model files (e.g. mistral) are installed and running.
+In addition, you need the following to convert PDF to text:
+ocrmypdf, PyMuPDF, PyMuPDF4LLM, pymupdf-layout, tesseract-ocr, pngquant, ghostscript
 
 ## Setup
 
@@ -155,4 +156,5 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
