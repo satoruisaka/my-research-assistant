@@ -20,6 +20,7 @@ Version 2: November 10, 2025
 
 ## Project Structure
 
+<pre>"""
 MyResearchAssistant/
 ├── main.py                      # Entry point
 ├── config.py                    # Paths, model settings, token limits, API keys
@@ -51,6 +52,7 @@ MyResearchAssistant/
 ├── util/chunk_md.jsonl               # Output from chunking for embedding
 ├── util/addchunk_md.jsonl            # Output from index updates
 └── util/log_chunk_md.txt             # Chunking log
+"""</pre>
 
 ## Requirements
 
@@ -145,5 +147,6 @@ Enter number or keyword:
 - All processing is local. No cloud dependencies.
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - You can switch between batch and streaming embedding modes.
+
 
 
