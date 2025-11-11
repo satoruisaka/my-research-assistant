@@ -20,7 +20,7 @@ Version 2: November 10, 2025
 
 ## Project Structure
 
-<pre>"""
+<pre>
 MyResearchAssistant/
 ├── main.py                      # Entry point
 ├── config.py                    # Paths, model settings, token limits, API keys
@@ -52,7 +52,7 @@ MyResearchAssistant/
 ├── util/chunk_md.jsonl               # Output from chunking for embedding
 ├── util/addchunk_md.jsonl            # Output from index updates
 └── util/log_chunk_md.txt             # Chunking log
-"""</pre>
+</pre>
 
 ## Requirements
 
@@ -106,12 +106,14 @@ python main.py
 
 **Example session:**
 
+<pre>
 🧠 Welcome to My Research Assistant (MRA)
 💬 Type 'exit' to quit at any time.
 
 Choose your next task:
 [1] General knowledge (@general)
 [2] Search documents (@search)
+[3] Web Search (@globalsearch)
 Enter number or keyword: 1
 Enter your query or topic: hello
 
@@ -123,6 +125,7 @@ Hello! How can I assist you today? If you have a specific research topic in mind
 Choose your next task:
 [1] General knowledge (@general)
 [2] Search documents (@search)
+[3] Web Search (@globalsearch)
 Enter number or keyword: 2
 Enter your query or topic: are there examples of engram being implemented in robots?
 
@@ -140,13 +143,13 @@ Choose your next task:
 [2] Summarize a document (@summary)
 [3] Search new documents (@search)
 [4] General knowledge (@general)
+[5] Web Search (@globalsearch)
 Enter number or keyword:
-
+</pre>
+  
 ## Notes
 
-- All processing is local. No cloud dependencies.
+- All processing is local (except web search). No cloud-based LLM dependencies.
 - Markdown logs are saved in `logs/` with timestamped filenames.
+- Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
-
-
-
