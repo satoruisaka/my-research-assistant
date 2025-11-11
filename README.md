@@ -14,9 +14,9 @@ Version 2: November 10, 2025
 - Modular utilities for PDF conversion, chunking, embedding, and index updates
 - CLI-based task-selections for document search, Q&A, summary, general inquiry and web search
 
-## Planned features
+## How it works
 
-- Distributed local index files for optimal user experience
+![My Research Assistant](MyResearchAssistant.jpg)
 
 ## Project Structure
 
@@ -146,10 +146,13 @@ Choose your next task:
 [5] Web Search (@globalsearch)
 Enter number or keyword:
 </pre>
-  
+
+![Sample Screenshot](MRAscreenshot.jpg)
+
 ## Notes
 
 - All processing is local (except web search). No cloud-based LLM dependencies.
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
