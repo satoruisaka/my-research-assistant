@@ -69,9 +69,11 @@ tqdm==4.67.1
 trafilatura==2.0.0
 transformers==4.57.1
 </pre>
-Assumption: ollama and model files (e.g. mistral) are installed and running.
-In addition, you need the following to convert PDF to text:
-ocrmypdf, PyMuPDF, PyMuPDF4LLM, pymupdf-layout, tesseract-ocr, pngquant, ghostscript
+
+**Assumption:**
+- GPU: RTX 4070 12GB vRAM equivalent or above
+- ollama and an open weight model (e.g. mistral 7B) are installed and running.
+- For PDF to text conversion, install ocrmypdf, PyMuPDF, PyMuPDF4LLM, pymupdf-layout, tesseract-ocr, pngquant, ghostscript
 
 ## Setup
 
@@ -157,6 +159,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
