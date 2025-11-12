@@ -79,19 +79,21 @@ transformers==4.57.1
 
 ### 1. Install dependencies
 
-pip install -r requirements.txt
+<pre>pip install -r requirements.txt</pre>
 
 Or manually:
 
-pip install beautifulsoup4 faiss-gpu fitz numpy pymupdf4llm requests \
-sentence_transformers tiktoken torch tqdm transformers
+<pre>pip install beautifulsoup4 faiss-gpu fitz numpy pymupdf4llm requests \
+sentence_transformers tiktoken torch tqdm transformers</pre>
 
 ### 2. Install Ollama and pull your local model
 
+<pre>
 url -fsSL https://ollama.com/install.sh | sh
 ollama serve
 ollama pull mistral
 ollama run mistral
+</pre>
 
 ### 3. Prepare your PDFs
 
@@ -106,7 +108,7 @@ ollama run mistral
 
 Launch the assistant:
 
-python main.py
+<pre>python main.py</pre>
 
 **Example session:**
 
@@ -159,6 +161,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
