@@ -57,17 +57,19 @@ MyResearchAssistant/
 ## Requirements
 
 <pre>
-beautifulsoup4==4.14.2
+numpy==1.26.0
+torch==2.5.1
+transformers==4.25.1
+sentence-transformers==2.2.2
+huggingface-hub==0.10.1
+faiss-cpu==1.7.4
 faiss-gpu==1.7.2
-fitz==0.0.1.dev2
-numpy==2.3.4
-requests==2.32.5
-sentence_transformers==5.1.2
 tiktoken==0.12.0
-torch==2.9.0+cpu
 tqdm==4.67.1
+requests==2.32.5
+beautifulsoup4==4.14.2
 trafilatura==2.0.0
-transformers==4.57.1
+fitz===0.0.1.dev2
 </pre>
 
 **Assumption:**
@@ -80,11 +82,6 @@ transformers==4.57.1
 ### 1. Install dependencies
 
 <pre>pip install -r requirements.txt</pre>
-
-Or manually:
-
-<pre>pip install beautifulsoup4 faiss-gpu fitz numpy pymupdf4llm requests \
-sentence_transformers tiktoken torch tqdm transformers</pre>
 
 ### 2. Install Ollama and pull your local model
 
@@ -161,6 +158,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
