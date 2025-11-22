@@ -1,6 +1,7 @@
-#!/usr/bin/env python3
 """
-MRA_3update_index_batch.py
+MRA_7update_index_batch.py
+
+The 7th and final step to prepare MRA data for embedding and indexing.
 
 Embeds new chunks and updates existing FAISS index and metadata.
 """
@@ -15,7 +16,7 @@ import os
 # Config
 CHUNK_FILE = "addchunk_md.jsonl"
 INDEX_PATH = "faiss_index"
-METADATA_PATH = "chunk_metadata.json"
+METADATA_PATH = "chunk_metadata_updated.json"
 MODEL_NAME = "BAAI/bge-large-en-v1.5"
 
 # Load model

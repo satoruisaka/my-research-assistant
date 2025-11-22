@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 MRA_3embed_chunks_B.py (batch processing for smaller files)
 

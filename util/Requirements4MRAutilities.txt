@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Required libraries and packages for PDF2TextConversion and MRA utilities
+
+## Prepare virtual environment
+
+python -m venv ./venv
+source ./venv/bin/activate
+
+## Update pip
+
+pip install --upgrade pip
+
+## Install required packages
+
+### For PDF2TextConversion and MRA_1pdf2text.py
+### (package versions that work for me on Ubuntu 22.04)
+
+pip install ocrmypdf==16.12.0
+pip install PyMuPDF==1.26.6
+pip install PyMuPDF4LLM==0.2.2
+pip install pymupdf-layout==1.26.6
+sudo apt install tesseract-ocr
+sudo apt install pngquant
+sudo apt install ghostscript
+sudo apt install jbig2enc
+sudo apt install cmake g++ libjpeg-dev libpng-dev libtiff-dev zlib1g-dev
+
+### For MRA_2chunk_md.py
+
+pip install tiktoken==0.12.0
+
+### For MRA_3embed_chunks_S.py, MRA_4migrate_chunk_metadata.py, MRA_6addchunk_md_enhanced.py, and MRA_7update_inde_batch.py
+
+pip install numpy==1.26.0
+pip install torch==2.5.1
+pip install transformers==4.25.1
+pip install sentence-transformers==2.2.2
+pip install huggingface-hub==0.10.1
+pip install faiss-cpu==1.7.4
+pip install faiss-gpu==1.7.2
+pip install tqdm==4.67.1

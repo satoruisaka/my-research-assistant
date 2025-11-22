@@ -1,4 +1,11 @@
-# MRA_chunk_md_enhanced.py
+"""
+MRA_6addchunk_md_enhanced.py
+
+The 6th step to prepare MRA data for embedding and indexing.
+(The 5th step was to test the MRA operation but is not part of the pipeline.)
+
+Prepares and chunks markdown log files for embedding.
+"""
 
 import os
 import re

@@ -1,6 +1,8 @@
 """
 MRA_1pdf2text.py
 
+The 1st step in the MRA data preparation pipeline.
+
 PDF to Text (markdown) Conversion using OCR when needed.
 - Scans PDFs in 'pdfs_in/' for extractable text.
 - Applies OCR via OCRmyPDF to scanned PDFs.

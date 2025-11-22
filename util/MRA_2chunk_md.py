@@ -1,6 +1,8 @@
 """
 MRA_2chunk_md.py
 
+The 2nd step to prepare MRA data for embedding and indexing.
+
 Chunking and cleaning pipeline for Markdown files intended for semantic embedding.
 
 This script processes Markdown documents from the 'pdfs_md' directory, splits them into token-safe chunks,

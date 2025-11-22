@@ -1,8 +1,10 @@
-#!/usr/bin/env python3
 """
 MRA_3embed_chunks_S.py (stream version to handle large files)
 
+The 3rd step in the MRA data preparation pipeline.
+
 Embeds text chunks using a transformer model and builds a FAISS index for semantic search.
+
 
 Dependencies:
   pip install -U sentence-transformers
@@ -64,7 +66,7 @@ def embed_chunks(model, chunk_iter, batch_size):
     metadata = []
     batch = []
     for chunk in tqdm(chunk_iter, desc="🧠 Embedding chunks"):
-        text = chunk["content"].strip().replace("\n", " ")
+        text = chunk["text"].strip().replace("\n", " ")
         batch.append(text)
         metadata.append(chunk)
         if len(batch) == batch_size:
@@ -95,11 +97,20 @@ def save_metadata(metadata, path):
 def main():
     try:
         model = load_model(MODEL_NAME)
+        print("loaded model:", MODEL_NAME)
+
         chunk_iter = stream_chunks(CHUNK_FILE)
+        print("loaded chunk file:")
+
         vectors, metadata = embed_chunks(model, chunk_iter, BATCH_SIZE)
+        print("embedded all chunks.")
+
         index = build_index(vectors)
+        print("built FAISS index.")
         save_index(index, INDEX_PATH)
+        print("saved FAISS index.")
         save_metadata(metadata, METADATA_PATH)
+        print("saved metadata.")
     except Exception as e:
         print(f"❌ Error: {e}")
 
