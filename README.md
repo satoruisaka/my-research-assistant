@@ -2,7 +2,7 @@
 
 Version 2: November 10, 2025
 
-**My Research Assistant (MRA)** is a private, local document search and Q&A system powered by a local LLM. It was built to solve a personal challenge: accessing and understanding over 1,000 academic PDFs accumulated over years of research. MRA enables conversational search and question-answering over a large corpus without using external services or sending data to the cloud. As of Version 2, MRA is a CLI (command line interface) application, running on Linux OS.
+**My Research Assistant (MRA)** is a private document search and Q&A system using a local LLM. MRA runs entirely on a local machine: no cloud, no cost, no Internet required. This solves my problem of accessing and activating over 1,000 documents sitting idle in my computers at home. With MRA, I'm now re-discovering ideas hidden in those old articles. As of Version 2, MRA is a CLI (command line interface) application, running on Linux OS.
 
 ## Features
 
@@ -158,6 +158,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
