@@ -32,7 +32,7 @@ MyResearchAssistant/
 ├── utils.py                     # Token counting, history
 ├── web_search.py                # Global web search
 ├── faiss_index                  # Semantic index (must be built by util tools)
-├── chunk_metadata.json          # Metadata for index (must be built by util tools)
+├── chunk_metadata_updated.json  # Metadata for index (must be built by util tools)
 ├── README.md                    # readme info
 ├── LICENSE                      # MIT license
 ├── requirements.txt             # required libraries
@@ -45,10 +45,9 @@ MyResearchAssistant/
 ├── util/MRA_2chunk_md.py             # Chunks markdown files
 ├── util/MRA_3embed_chunks_B.py       # Batch embedding
 ├── util/MRA_3embed_chunks_S.py       # Streaming embedding
-├── util/MRA_4query_LLM.py            # Query test
+├── util/MRA_4migrate_chunk_metadata.py    # Converts old chunk format
 ├── util/MRA_6addchunk_md_enhanced.py # Chunks new files in logs folder
 ├── util/MRA_7update_index_batch.py   # Updates index
-├── util/migrate_chunk_metadata.py    # Converts old chunk format
 ├── util/chunk_md.jsonl               # Output from chunking for embedding
 ├── util/addchunk_md.jsonl            # Output from index updates
 └── util/log_chunk_md.txt             # Chunking log
@@ -100,6 +99,9 @@ ollama run mistral
 
 ### 3. Prepare your PDFs
 
+To prepare faiss index and metadata, separate preparation steps are necessary.
+See util/Requirements4MRAutilities.txt for details.
+Once all reqs are complete, you can take the following steps:
 - Place original PDFs in `pdfs_in/`
 - Run `MRA_1pdf2text.py` to convert them to markdown, outputs in 'pdfs_md' folder
 - Run `MRA_2chunk_md.py` to chunk md files and generates chunks_md.jsonl
@@ -164,6 +166,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
