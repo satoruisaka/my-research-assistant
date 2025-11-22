@@ -106,6 +106,7 @@ Once all reqs are complete, you can take the following steps:
 - Run `MRA_1pdf2text.py` to convert them to markdown, outputs in 'pdfs_md' folder
 - Run `MRA_2chunk_md.py` to chunk md files and generates chunks_md.jsonl
 - Run `MRA_3embed_chunks_B.py` to generate FAISS_index and chunk_metadata.json
+- Run `MRA_4migrate_chunk_metadata.py` to update the metadata
 - Use `MRA_6addchunk_md_enhanced.py` to chunk new files in /logs folder
 - Use `MRA_7update_index_batch.py` to update the FAISS index and metadata
 
@@ -166,6 +167,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
