@@ -79,6 +79,12 @@ fitz===0.0.1.dev2
 
 ## Setup
 
+Virtual environment is strongly recommended when installing Python packages.
+<pre>
+python -m venv .venv
+source ./.venv/bin/activate
+</pre>
+
 ### 1. Install dependencies
 
 <pre>pip install -r requirements.txt</pre>
@@ -158,6 +164,7 @@ Enter number or keyword:
 - Markdown logs are saved in `logs/` with timestamped filenames.
 - Use utility tools to update index for new files and logs, then you can query on previous sessions.
 - You can switch between batch and streaming embedding modes.
+
 
 
 
