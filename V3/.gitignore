@@ -1,0 +1,37 @@
+# Environment variables (contains API keys)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# FAISS indices and data
+faiss_indices/
+data/
+data/*/pdfs_in/*.pdf
+data/*/pdfs_ocr/
+data/*/pdfs_md/
+data/*/chunks/
+
+# Logs
+*.log
+failed_files.log
+
+# Session data
+sessions/
+outputs/
+
+# Models cache
+models/
+
+# Temporary files
+*.tmp
+temp/

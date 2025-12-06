@@ -1,0 +1,68 @@
+# MRA_v3 Dependencies
+
+# ============================================================================
+# INSTALLATION INSTRUCTIONS (WSL + Virtual Environment)
+# ============================================================================
+# 1. Create virtual environment:
+#    python -m venv .venv
+#
+# 2. Activate virtual environment:
+#    source ./.venv/bin/activate
+#
+# 3. Update pip:
+#    pip install -U pip
+#
+# 4. IMPORTANT: Install numpy FIRST (required for faiss-gpu):
+#    pip install numpy==1.26.0
+#
+# 5. Install system dependencies (OCR):
+#    sudo apt install -y tesseract-ocr pngquant ghostscript cmake g++ libjpeg-dev libpng-dev libtiff-dev zlib1g-dev
+#
+# 6. Install remaining Python packages:
+#    pip install -r requirements.txt
+# ============================================================================
+
+# Core
+python-dotenv==1.0.0
+requests==2.32.5
+
+# Embedding and FAISS
+# NOTE: numpy==1.26.0 MUST BE INSTALLED SEPARATELY FIRST (see instructions above)
+torch==2.5.1
+transformers==4.25.1
+sentence-transformers==2.2.2
+huggingface-hub==0.10.1
+faiss-gpu==1.7.2  # For GPU (CUDA required). Use faiss-cpu==1.7.2 if no GPU
+tqdm==4.67.1
+
+# Web framework
+fastapi==0.122.0
+uvicorn==0.38.0
+pydantic==2.12.5
+python-multipart==0.0.20
+jinja2==3.1.6
+
+# Web scraping
+beautifulsoup4==4.14.3
+lxml==6.0.2
+trafilatura==1.6.3
+
+# Web search
+ddgs==9.9.2  # DuckDuckGo fallback
+
+# Document processing
+PyMuPDF==1.26.6
+pymupdf4llm==0.2.2
+pymupdf-layout==1.26.6
+python-docx==1.1.0
+
+# OCR (optional, WSL only)
+ocrmypdf==16.12.0
+
+# Chunking
+tiktoken==0.12.0
+
+
+
+# Development
+pytest==7.4.3
