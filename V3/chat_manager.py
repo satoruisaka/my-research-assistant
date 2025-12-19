@@ -25,6 +25,7 @@ from retrieval_manager import RetrievalManager, SearchScope
 from web_search import WebSearchClient
 from ollama_client import OllamaClient
 from twistedpair_client import TwistedPairClient, DistortionMode, DistortionTone
+from config import NUM_CTX, DEFAULT_MODEL
 
 
 @dataclass
@@ -43,12 +44,13 @@ class Message:
 @dataclass
 class ContextItem:
     """Context item (retrieved document or web result)."""
-    source: str  # 'reference_papers', 'web_search', etc.
+    source: str  # 'reference_papers', 'web_search', 'uploaded_document', etc.
     title: str
     snippet: str
     score: Optional[float] = None
     url: Optional[str] = None
     doc_id: Optional[str] = None
+    full_content: Optional[str] = None  # Full content for uploaded documents
     
     def to_dict(self) -> Dict:
         """Convert to JSON-serializable dict."""
@@ -58,9 +60,9 @@ class ContextItem:
 @dataclass
 class SessionSettings:
     """Session-level settings."""
-    model: str = "mistral:latest"
+    model: str = DEFAULT_MODEL
     temperature: float = 0.7
-    max_tokens: int = 4000
+    max_tokens: int = NUM_CTX
     top_k_retrieval: int = 20
     use_rag: bool = True
     use_web_search: bool = False
@@ -482,6 +484,7 @@ class ChatManager:
             # Prepend system message with context
             messages.insert(0, {'role': 'system', 'content': system_prompt})
             
+            # Non-streaming for now (streaming handled by separate endpoint)
             assistant_response = self.ollama.chat(
                 messages=messages,
                 model=session.settings.model,
@@ -667,7 +670,7 @@ if __name__ == '__main__':
                        help='User message')
     parser.add_argument('--session-id', type=str, default='new',
                        help='Session ID (or "new")')
-    parser.add_argument('--model', type=str, default='mistral:latest',
+    parser.add_argument('--model', type=str, default=DEFAULT_MODEL,
                        help='Ollama model')
     parser.add_argument('--use-rag', action='store_true',
                        help='Enable RAG')

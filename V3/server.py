@@ -21,16 +21,20 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, validator
+import asyncio
+import json as json_lib
 
 from chat_manager import ChatManager, SessionSettings
 from retrieval_manager import RetrievalManager, SearchScope
 from web_search import WebSearchClient
 from ollama_client import OllamaClient
 from twistedpair_client import TwistedPairClient, DistortionMode, DistortionTone
+from config import NUM_CTX, DEFAULT_MODEL
 
 
 # Configure logging
@@ -48,12 +52,12 @@ logger = logging.getLogger(__name__)
 class ChatMessageRequest(BaseModel):
     """Request for /api/chat/message"""
     session_id: str = Field(..., description="Session ID or 'new' for new session")
-    message: str = Field(..., min_length=1, max_length=10000, description="User message")
+    message: str = Field(..., min_length=1, max_length=100000, description="User message (max 100,000 characters)")
     
     # LLM settings
-    model: str = "mistral:latest"
+    model: str = DEFAULT_MODEL
     temperature: float = Field(0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(4000, ge=100, le=128000)
+    max_tokens: int = Field(4000, ge=100, le=NUM_CTX)
     
     # Retrieval settings
     use_rag: bool = True
@@ -75,6 +79,9 @@ class ChatMessageRequest(BaseModel):
     distortion_mode: str = "CUCUMB_ER"
     distortion_tone: str = "NEUTRAL"
     distortion_gain: int = Field(5, ge=1, le=10)
+    
+    # Uploaded document context (optional)
+    uploaded_context: Optional[List[Dict[str, str]]] = None
     
     @validator('message')
     def sanitize_message(cls, v):
@@ -126,7 +133,7 @@ class WebSearchRequest(BaseModel):
 
 class DistortRequest(BaseModel):
     """Request for /api/distort"""
-    text: str = Field(..., min_length=1, max_length=10000)
+    text: str = Field(..., min_length=1, max_length=100000)
     mode: str = "CUCUMB_ER"
     tone: str = "NEUTRAL"
     gain: int = Field(5, ge=1, le=10)
@@ -221,6 +228,222 @@ async def startup_event():
 # ============================================================================
 # API Endpoints
 # ============================================================================
+
+@app.post("/api/chat/message/stream")
+async def chat_message_stream(request: ChatMessageRequest):
+    """
+    Process chat message with streaming response (Server-Sent Events).
+    
+    Returns:
+        StreamingResponse with text/event-stream
+    """
+    try:
+        # Convert request settings to SessionSettings
+        settings = SessionSettings(
+            model=request.model,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            top_k_retrieval=request.top_k_retrieval,
+            use_rag=request.use_rag,
+            use_web_search=request.use_web_search,
+            use_distortion=request.use_distortion,
+            use_ensemble_distortion=request.use_ensemble_distortion,
+            include_conversation_context=request.include_conversation_context,
+            search_scope=request.search_scope,
+            distortion_mode=request.distortion_mode.lower(),
+            distortion_tone=request.distortion_tone.lower(),
+            distortion_gain=request.distortion_gain
+        )
+        
+        # Get or create session
+        session = chat_manager.get_session(request.session_id, settings)
+        session.add_message('user', request.message)
+        
+        # Perform retrieval and web search (same as non-streaming)
+        context_items = []
+        if settings.use_rag:
+            from retrieval_manager import SearchScope
+            scope = SearchScope(**settings.search_scope)
+            retrieval_results = chat_manager.retrieval.unified_search(
+                query=request.message,
+                scope=scope,
+                k=settings.top_k_retrieval
+            )
+            
+            from chat_manager import ContextItem
+            for result in retrieval_results:
+                context_items.append(ContextItem(
+                    source=result.source,
+                    title=result.filename,
+                    snippet=result.child_text[:300],
+                    score=result.score,
+                    doc_id=result.doc_id
+                ))
+        
+        if settings.use_web_search:
+            try:
+                web_response = chat_manager.web_search.search(
+                    query=request.message,
+                    num_results=10
+                )
+                from chat_manager import ContextItem
+                for result in web_response.results:
+                    context_items.append(ContextItem(
+                        source='web_search',
+                        title=result.title,
+                        snippet=result.snippet,
+                        url=result.url
+                    ))
+            except Exception as e:
+                logger.warning(f"Web search failed: {e}")
+        
+        # Add uploaded document context if provided
+        if settings.use_rag and request.uploaded_context:
+            logger.info(f"Including {len(request.uploaded_context)} uploaded documents in context")
+            from chat_manager import ContextItem
+            for doc in request.uploaded_context:
+                context_items.append(ContextItem(
+                    source='uploaded_document',
+                    title=doc.get('filename', 'Uploaded Document'),
+                    snippet=doc.get('content', '')[:500],  # First 500 chars as snippet
+                    full_content=doc.get('content', '')  # Store full content
+                ))
+        
+        # Build prompt
+        if context_items:
+            session.add_context(context_items)
+            context_summary = session.get_context_summary()
+            
+            # Add full content of uploaded documents to system prompt
+            uploaded_docs_content = ""
+            for item in context_items:
+                if item.source == 'uploaded_document' and hasattr(item, 'full_content'):
+                    uploaded_docs_content += f"\n\n=== Uploaded Document: {item.title} ===\n{item.full_content}\n"
+            
+            system_prompt = (
+                f"You are a helpful research assistant. "
+                f"Answer based on the following context:\n\n{context_summary}{uploaded_docs_content}\n\n"
+                f"If the context doesn't contain relevant information, say so."
+            )
+        else:
+            system_prompt = "You are a helpful research assistant."
+        
+        messages = session.get_messages_for_llm(include_system=False)
+        messages.insert(0, {'role': 'system', 'content': system_prompt})
+        
+        async def event_generator():
+            """Generate Server-Sent Events for streaming."""
+            try:
+                # Send session ID first
+                yield f"data: {json_lib.dumps({'type': 'session_id', 'session_id': session.session_id})}\n\n"
+                
+                # Send context
+                if context_items:
+                    yield f"data: {json_lib.dumps({'type': 'context', 'context': [c.to_dict() for c in context_items]})}\n\n"
+                
+                # Stream tokens
+                full_response = ""
+                for token in chat_manager.ollama.chat_stream(
+                    messages=messages,
+                    model=settings.model,
+                    temperature=settings.temperature,
+                    max_tokens=settings.max_tokens
+                ):
+                    full_response += token
+                    yield f"data: {json_lib.dumps({'type': 'token', 'content': token})}\n\n"
+                    await asyncio.sleep(0)  # Allow other tasks to run
+                
+                # Apply distortion if enabled (after streaming completes)
+                ensemble_outputs = None
+                if settings.use_distortion:
+                    try:
+                        from twistedpair_client import DistortionTone
+                        tone = DistortionTone(settings.distortion_tone)
+                        
+                        # Build text for distortion (response + optional conversation context)
+                        distortion_text = full_response
+                        if settings.include_conversation_context:
+                            # Include last 3 user-assistant exchanges for context
+                            recent_messages = []
+                            for msg in session.messages[-7:-1]:  # Skip the current assistant response
+                                if msg.role in ['user', 'assistant']:
+                                    recent_messages.append(f"{msg.role.upper()}: {msg.content}")
+                            
+                            if recent_messages:
+                                context = "\n".join(recent_messages)
+                                distortion_text = f"CONVERSATION CONTEXT:\n{context}\n\nCURRENT RESPONSE:\n{full_response}"
+                        
+                        # Ensemble mode - all 6 perspectives
+                        if settings.use_ensemble_distortion:
+                            ensemble_result = chat_manager.twistedpair.distort_ensemble(
+                                text=distortion_text,
+                                tone=tone,
+                                gain=settings.distortion_gain,
+                                model=settings.model
+                            )
+                            
+                            # Store all outputs for frontend display
+                            ensemble_outputs = [
+                                {
+                                    'mode': output.mode,
+                                    'tone': output.tone,
+                                    'gain': output.gain,
+                                    'response': output.output
+                                }
+                                for output in ensemble_result.outputs
+                            ]
+                            
+                            # Send ensemble outputs
+                            yield f"data: {json_lib.dumps({'type': 'ensemble', 'outputs': ensemble_outputs})}\n\n"
+                        
+                        # Manual mode - single perspective (optional: could override full_response)
+                        else:
+                            from twistedpair_client import DistortionMode
+                            mode = DistortionMode(settings.distortion_mode)
+                            distortion_result = chat_manager.twistedpair.distort(
+                                text=distortion_text,
+                                mode=mode,
+                                tone=tone,
+                                gain=settings.distortion_gain,
+                                model=settings.model
+                            )
+                            
+                            # Send single distortion output
+                            yield f"data: {json_lib.dumps({'type': 'distortion', 'content': distortion_result.output})}\n\n"
+                            
+                    except Exception as e:
+                        logger.error(f"Distortion failed: {e}")
+                        yield f"data: {json_lib.dumps({'type': 'error', 'message': f'Distortion failed: {str(e)}'})}\n\n"
+                
+                # Save to session
+                session.add_message('assistant', full_response, metadata={
+                    'distorted': settings.use_distortion,
+                    'context_count': len(context_items),
+                    'ensemble': ensemble_outputs is not None
+                })
+                session.save()
+                
+                # Send done signal
+                yield f"data: {json_lib.dumps({'type': 'done'})}\n\n"
+                
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: {json_lib.dumps({'type': 'error', 'message': str(e)})}\n\n"
+        
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
+        )
+    
+    except Exception as e:
+        logger.error(f"Chat stream error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/chat/message", response_model=ChatMessageResponse)
 async def chat_message(request: ChatMessageRequest):
@@ -408,8 +631,11 @@ async def health_check():
         if ollama_healthy:
             try:
                 ollama_models = ollama_client.list_models()
-            except:
-                pass
+                logger.info(f"Ollama models: {ollama_models}")
+            except Exception as e:
+                logger.error(f"Failed to list Ollama models: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
         
         # Check TwistedPair
         twistedpair_healthy = twistedpair_client.is_healthy()
@@ -445,6 +671,79 @@ async def health_check():
             services={"error": str(e)},
             indices={}
         )
+
+
+# ============================================================================
+# File Upload Endpoint
+# ============================================================================
+
+@app.post("/api/upload")
+async def upload_file(request: Request):
+    """
+    Upload a file (PDF, TXT, CSV, MD) for conversion and chat context.
+    
+    Returns:
+        - filename: Original filename
+        - file_type: File extension
+        - markdown_content: Converted markdown text
+        - token_count: Token count
+        - saved_path: Path where file was saved (if saved)
+    """
+    from fastapi import UploadFile, File, Form
+    from MRA_v3_1_upload_to_md import process_uploaded_file
+    from utils.document_processor import DocumentProcessor
+    import tempfile
+    import shutil
+    
+    try:
+        # Parse multipart form data
+        form = await request.form()
+        uploaded_file = form.get('file')
+        
+        if not uploaded_file:
+            raise HTTPException(status_code=400, detail="No file provided")
+        
+        # Save uploaded file to temp location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.filename).suffix) as tmp_file:
+            content = await uploaded_file.read()
+            tmp_file.write(content)
+            tmp_path = Path(tmp_file.name)
+        
+        try:
+            # Process the file (convert to markdown)
+            md_content, saved_path = process_uploaded_file(
+                file_path=tmp_path,
+                save_to_disk=True,  # Save to user_uploads directory
+                include_metadata=True
+            )
+            
+            # Get token count
+            processor = DocumentProcessor()
+            token_count = processor.count_tokens(md_content)
+            
+            # Store in chat context (add to state for current session)
+            # Note: This is a simplified approach - in production, you'd want to
+            # associate the uploaded doc with the specific session
+            
+            return JSONResponse({
+                "filename": uploaded_file.filename,
+                "file_type": Path(uploaded_file.filename).suffix,
+                "markdown_content": md_content,
+                "token_count": token_count,
+                "saved_path": str(saved_path) if saved_path else None,
+                "message": "File uploaded and converted successfully"
+            })
+            
+        finally:
+            # Cleanup temp file
+            try:
+                tmp_path.unlink()
+            except:
+                pass
+    
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -488,6 +787,43 @@ async def serve_app_js():
 # ============================================================================
 # Error Handlers
 # ============================================================================
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Custom validation error handler for clearer error messages."""
+    errors = []
+    for error in exc.errors():
+        field = ".".join(str(loc) for loc in error["loc"])
+        msg = error["msg"]
+        error_type = error["type"]
+        
+        # Provide human-readable messages for common validation errors
+        if "max_length" in error_type:
+            max_val = error.get("ctx", {}).get("limit_value", "unknown")
+            errors.append(f"{field}: Text too long (max {max_val:,} characters)")
+        elif "min_length" in error_type:
+            min_val = error.get("ctx", {}).get("limit_value", "unknown")
+            errors.append(f"{field}: Text too short (min {min_val} characters)")
+        elif "greater_than_equal" in error_type or "less_than_equal" in error_type:
+            limit = error.get("ctx", {}).get("limit_value", "unknown")
+            errors.append(f"{field}: Value out of range ({msg})")
+        else:
+            errors.append(f"{field}: {msg}")
+    
+    logger.warning(f"Validation error on {request.url.path}: {errors}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Request validation failed",
+                "details": errors,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+    )
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):

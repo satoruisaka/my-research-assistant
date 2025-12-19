@@ -43,7 +43,7 @@ class DistortionTone(Enum):
 class DistortionConfig:
     """Configuration for TwistedPair client."""
     base_url: str = "http://localhost:8001"
-    timeout: int = 120  # seconds (distortion can be slow)
+    timeout: int = 240  # seconds (distortion can be slow)
     retry_attempts: int = 3
     retry_delay: float = 2.0  # seconds
 

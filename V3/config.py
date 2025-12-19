@@ -27,22 +27,22 @@ for dir_path in [DATA_DIR, FAISS_DIR, MODELS_DIR]:
 # Reference papers directory (~823 PDFs)
 SOURCE_REFERENCE_DIR = Path(os.getenv(
     "REFERENCE_PAPERS_DIR",
-    "(path to local document directory here)"
+    "/mnt/c/Users/sator/Documents/linuxproject/MyReferences"
 ))
 
 # Your authored papers directory (7 PDFs)
 SOURCE_AUTHORED_DIR = Path(os.getenv(
     "MY_PAPERS_DIR",
-    "(path to secondary local document directory here)"
+    "/mnt/c/Users/sator/Documents/linuxproject/MyAuthoredPapers"
 ))
 
 # Aliases for backward compatibility with update_paper_indices.py
 REFERENCE_PAPERS_DIR = SOURCE_REFERENCE_DIR
 MY_PAPERS_DIR = SOURCE_AUTHORED_DIR
 
-# Debug: Show what was loaded
-print(f"📁 Reference Papers directory: {SOURCE_REFERENCE_DIR}")
-print(f"📁 Authored Papers directory: {SOURCE_AUTHORED_DIR}")
+# Debug: Show what was loaded (commented out to reduce console noise)
+# print(f"📁 Reference Papers directory: {SOURCE_REFERENCE_DIR}")
+# print(f"📁 Authored Papers directory: {SOURCE_AUTHORED_DIR}")
 
 # Internal data directories (created automatically)
 WEB_CACHE_DIR = DATA_DIR / "web_cache"
@@ -78,11 +78,11 @@ AVAILABLE_LLM_MODELS = [
     "mistral:latest",
     "openchat:latest",
     "phi3:14b",
-    "qwen2.5:latest"
+    "qwen3:latest"
 ]
 
-DEFAULT_MODEL = "mistral:latest"
-NUM_CTX = 128000  # Context window (tokens)
+DEFAULT_MODEL = "ministral-3:8b"
+NUM_CTX = 128000  # Context window (tokens) - keep this value not too high for low GPU machines
 
 # === TWISTEDPAIR V2 INTEGRATION ===
 TWISTEDPAIR_URL = os.getenv("TWISTEDPAIR_URL", "http://localhost:8001")
