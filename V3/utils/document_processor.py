@@ -7,6 +7,7 @@ Supports:
 - PDF (with OCR fallback via OCRmyPDF)
 - DOCX (Microsoft Word)
 - TXT (plain text)
+- CSV (converted to markdown tables)
 
 Outputs:
 - Markdown format with token count header
@@ -24,6 +25,7 @@ Usage:
     # Output: "# Token count: 12,345\n\n# Title\nContent..."
 """
 import os
+import csv
 import subprocess
 import hashlib
 from pathlib import Path
@@ -120,6 +122,10 @@ class DocumentProcessor:
                 md_text = self._convert_docx(file_path)
             elif suffix == ".txt":
                 md_text = self._convert_txt(file_path)
+            elif suffix == ".csv":
+                md_text = self._convert_csv(file_path)
+            elif suffix in [".md", ".markdown"]:
+                md_text = self._convert_markdown(file_path)
             else:
                 raise DocumentProcessingError(
                     f"Unsupported file type: {suffix}",
@@ -247,6 +253,103 @@ class DocumentProcessor:
             raise DocumentProcessingError(
                 f"Failed to decode text file with multiple encodings",
                 context={'file_path': str(txt_path)}
+            )
+    
+    def _convert_csv(self, csv_path: Path, max_rows: int = 1000) -> str:
+        """Convert CSV to Markdown table."""
+        try:
+            # Read file and detect delimiter
+            with open(csv_path, 'r', encoding='utf-8', newline='') as f:
+                sample = f.read(8192)
+                f.seek(0)
+                
+                # Try to auto-detect delimiter and header
+                has_header = False
+                try:
+                    sniffer = csv.Sniffer()
+                    dialect = sniffer.sniff(sample)
+                    has_header = sniffer.has_header(sample)
+                    reader = csv.reader(f, dialect)
+                except:
+                    # Fallback to comma delimiter
+                    reader = csv.reader(f)
+                
+                rows = list(reader)
+            
+            if not rows:
+                return "# Empty CSV file\n\nNo data found."
+            
+            # Filter out empty rows
+            rows = [row for row in rows if any(cell.strip() for cell in row)]
+            
+            if not rows:
+                return "# Empty CSV file\n\nNo data found."
+            
+            # Check if too large
+            if len(rows) > max_rows:
+                original_count = len(rows)
+                rows = rows[:max_rows]
+                truncated = True
+            else:
+                truncated = False
+            
+            # Determine max number of columns across ALL rows
+            max_cols = max(len(row) for row in rows)
+            
+            # Build markdown table
+            md_lines = []
+            
+            # Generate or use header row
+            if has_header:
+                # Use first row as header
+                header = rows[0][:]
+                data_rows = rows[1:]
+            else:
+                # Generate generic column headers
+                header = [f"Column{i+1}" for i in range(max_cols)]
+                data_rows = rows
+            
+            # Pad header to max_cols
+            while len(header) < max_cols:
+                header.append("")
+            
+            # Escape pipe characters and newlines in header cells
+            escaped_header = [cell.replace('|', '\\|').replace('\n', ' ').strip() for cell in header]
+            md_lines.append("| " + " | ".join(escaped_header) + " |")
+            md_lines.append("| " + " | ".join(["---"] * max_cols) + " |")
+            
+            # Data rows - pad ALL rows to max_cols
+            for row in data_rows:
+                # Make a copy and pad to max_cols
+                padded_row = row[:]
+                while len(padded_row) < max_cols:
+                    padded_row.append("")
+                # Escape pipe characters and newlines in data cells
+                escaped_row = [cell.replace('|', '\\|').replace('\n', ' ').strip() for cell in padded_row]
+                md_lines.append("| " + " | ".join(escaped_row) + " |")
+            
+            md_text = "\n".join(md_lines)
+            
+            if truncated:
+                md_text += f"\n\n*Note: Table truncated to {max_rows} rows (original had {original_count} rows)*"
+            
+            return md_text
+            
+        except Exception as e:
+            raise DocumentProcessingError(
+                f"CSV conversion failed: {e}",
+                context={'file_path': str(csv_path)}
+            )
+    
+    def _convert_markdown(self, md_path: Path) -> str:
+        """Pass through markdown files (just read them)."""
+        try:
+            with open(md_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            raise DocumentProcessingError(
+                f"Failed to read markdown file: {e}",
+                context={'file_path': str(md_path)}
             )
     
     def _has_text_layer(self, pdf_path: Path) -> bool:
