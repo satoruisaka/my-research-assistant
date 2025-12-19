@@ -5,10 +5,11 @@ const state = {
     currentSessionId: null,
     messages: [],
     context: [],
+    uploadedDocuments: [],  // Store uploaded document content
     settings: {
-        model: 'mistral:latest',
+        model: 'ministral-3:8b',
         temperature: 0.7,
-        maxTokens: 4000,
+        maxTokens: 128000,
         topK: 20,
         searchScope: {
             referencePapers: true,
@@ -33,6 +34,16 @@ let currentExchange = null;
 
 // API Base URL
 const API_BASE = window.location.origin;
+
+// Configure marked.js for markdown parsing
+if (typeof marked !== 'undefined') {
+    marked.setOptions({
+        breaks: true,  // Convert \n to <br>
+        gfm: true,     // GitHub Flavored Markdown
+        headerIds: false,
+        mangle: false
+    });
+}
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -164,6 +175,13 @@ function initializeEventListeners() {
     
     // New session
     document.getElementById('new-session-btn').addEventListener('click', createNewSession);
+    
+    // File upload
+    document.getElementById('upload-btn').addEventListener('click', () => {
+        document.getElementById('file-upload-input').click();
+    });
+    
+    document.getElementById('file-upload-input').addEventListener('change', handleFileUpload);
 }
 
 // Switch panel tabs
@@ -262,6 +280,117 @@ async function checkServiceStatus() {
     setTimeout(checkServiceStatus, 60000);
 }
 
+// Handle file upload
+async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const statusDiv = document.getElementById('upload-status');
+    const fileInput = document.getElementById('file-upload-input');
+    
+    // Validate file type
+    const validExtensions = ['.pdf', '.txt', '.csv', '.md', '.markdown'];
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    
+    if (!validExtensions.includes(fileExtension)) {
+        statusDiv.innerHTML = `<span style="color: var(--danger);">❌ Unsupported file type</span>`;
+        fileInput.value = '';
+        return;
+    }
+    
+    // Show uploading status
+    statusDiv.innerHTML = `<span style="color: var(--info);">⏳ Uploading ${file.name}...</span>`;
+    
+    try {
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Upload file to server
+        const response = await fetch(`${API_BASE}/api/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload failed');
+        }
+        
+        const data = await response.json();
+        
+        // Show success
+        statusDiv.innerHTML = `<span style="color: var(--success);">✅ ${data.filename}</span>`;
+        
+        // Store uploaded document in state
+        state.uploadedDocuments.push({
+            filename: data.filename,
+            content: data.markdown_content,
+            token_count: data.token_count,
+            uploaded_at: new Date().toISOString()
+        });
+        
+        console.log('Uploaded document added to state:', data.filename);
+        console.log('Total uploaded documents:', state.uploadedDocuments.length);
+        
+        // Add uploaded content to chat (visible to user)
+        addUploadedDocToChat(data);
+        
+        // Clear file input after 2 seconds
+        setTimeout(() => {
+            statusDiv.innerHTML = '';
+            fileInput.value = '';
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        statusDiv.innerHTML = `<span style="color: var(--danger);">❌ ${error.message}</span>`;
+        fileInput.value = '';
+    }
+}
+
+// Add uploaded document to chat as system message
+function addUploadedDocToChat(uploadData) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Create new exchange container for upload notification
+    const exchangeId = `exchange-upload-${Date.now()}`;
+    const exchangeDiv = document.createElement('div');
+    exchangeDiv.className = 'exchange-container';
+    exchangeDiv.id = exchangeId;
+    
+    exchangeDiv.innerHTML = `
+        <div class="exchange-header">
+            <span class="exchange-summary">📄 Document Uploaded: ${uploadData.filename}</span>
+            <span class="exchange-toggle">▼</span>
+        </div>
+        <div class="exchange-content">
+            <div class="message system">
+                <div class="message-avatar">📤</div>
+                <div class="message-content">
+                    <p><strong>Document uploaded and ready for chat:</strong></p>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><strong>File:</strong> ${uploadData.filename}</li>
+                        <li><strong>Type:</strong> ${uploadData.file_type}</li>
+                        <li><strong>Tokens:</strong> ${uploadData.token_count.toLocaleString()}</li>
+                        ${uploadData.saved_path ? `<li><strong>Saved:</strong> ${uploadData.saved_path}</li>` : '<li><em>In-memory only</em></li>'}
+                    </ul>
+                    <p style="margin-top: 0.75rem; font-style: italic;">This document is now available in the chat context. You can ask questions about it!</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(exchangeDiv);
+    
+    // Add toggle functionality
+    const header = exchangeDiv.querySelector('.exchange-header');
+    header.addEventListener('click', () => toggleExchange(exchangeId));
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
 // Send message
 async function sendMessage() {
     const textarea = document.getElementById('user-input');
@@ -286,15 +415,16 @@ async function sendMessage() {
     // Add user message to UI
     addMessage('user', message);
     
-    // Show loading
-    const loadingId = addMessage('assistant', '<div class="loading"><span></span><span></span><span></span></div>', true);
+    // Create streaming message placeholder
+    const streamingId = addStreamingMessage();
+    console.log('Created streaming message with ID:', streamingId);
+    console.log('Streaming message element:', document.getElementById(streamingId));
     
     try {
-        // Prepare request
+        // Prepare request parameters
         const requestData = {
             session_id: state.currentSessionId || 'new',
             message: message,
-            // Flatten settings to match server schema
             use_rag: true,
             use_web_search: state.settings.useWebSearch,
             use_distortion: state.settings.useDistortion,
@@ -315,8 +445,17 @@ async function sendMessage() {
             distortion_gain: state.settings.distortion.gain
         };
         
-        // Send request
-        const response = await fetch(`${API_BASE}/api/chat/message`, {
+        // Add uploaded documents to context if any exist
+        if (state.uploadedDocuments.length > 0) {
+            requestData.uploaded_context = state.uploadedDocuments.map(doc => ({
+                filename: doc.filename,
+                content: doc.content
+            }));
+            console.log('Including', state.uploadedDocuments.length, 'uploaded documents in request');
+        }
+        
+        // Use Server-Sent Events for streaming
+        const response = await fetch(`${API_BASE}/api/chat/message/stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -328,36 +467,233 @@ async function sendMessage() {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const data = await response.json();
+        // Read streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let contextData = null;
+        let tokenCount = 0;
         
-        // Update session ID
-        if (data.session_id) {
-            state.currentSessionId = data.session_id;
-        }
+        console.log('Starting to read streaming response...');
         
-        // Remove loading message
-        removeMessage(loadingId);
-        
-        // Add assistant response
-        addMessage('assistant', data.assistant_response, false, data.context_used);
-        
-        // If ensemble outputs available, display them
-        if (data.ensemble_outputs && data.ensemble_outputs.length > 0) {
-            displayEnsembleOutputs(data.ensemble_outputs);
-        }
-        
-        // Update context panel
-        if (data.context_used && data.context_used.length > 0) {
-            updateContextPanel(data.context_used);
+        while (true) {
+            const {done, value} = await reader.read();
+            
+            if (done) {
+                console.log('Stream completed. Total tokens received:', tokenCount);
+                break;
+            }
+            
+            buffer += decoder.decode(value, {stream: true});
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop(); // Keep incomplete line in buffer
+            
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        console.log('Received SSE event:', data.type, data);
+                        
+                        if (data.type === 'session_id') {
+                            state.currentSessionId = data.session_id;
+                        } else if (data.type === 'context') {
+                            contextData = data.context;
+                            console.log('Context received:', contextData.length, 'items');
+                        } else if (data.type === 'token') {
+                            tokenCount++;
+                            appendToStreamingMessage(streamingId, data.content);
+                        } else if (data.type === 'ensemble') {
+                            // Ensemble distortion outputs received
+                            displayEnsembleOutputs(data.outputs);
+                        } else if (data.type === 'distortion') {
+                            // Single distortion output - replace main response
+                            replaceStreamingMessageContent(streamingId, data.content);
+                        } else if (data.type === 'done') {
+                            console.log('Finalizing message with', tokenCount, 'tokens');
+                            finalizeStreamingMessage(streamingId, contextData);
+                        } else if (data.type === 'error') {
+                            throw new Error(data.message);
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE:', e, 'Line:', line);
+                    }
+                }
+            }
         }
         
     } catch (error) {
         console.error('Send message failed:', error);
-        removeMessage(loadingId);
+        removeMessage(streamingId);
         addMessage('assistant', `❌ Error: ${error.message}`, true);
     } finally {
         sendBtn.disabled = false;
     }
+}
+
+// Add streaming message placeholder
+function addStreamingMessage() {
+    const messagesContainer = document.getElementById('chat-messages');
+    const targetContainer = currentExchange ? currentExchange.querySelector('.exchange-content') : messagesContainer;
+    const messageId = `msg-assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log('Creating streaming message:', messageId);
+    console.log('Target container:', targetContainer);
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message assistant';
+    messageDiv.id = messageId;
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = '🤖';
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content streaming';
+    contentDiv.innerHTML = '<span class="streaming-cursor">▋</span>';
+    
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(contentDiv);
+    targetContainer.appendChild(messageDiv);
+    
+    console.log('Streaming message created and appended');
+    
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    return messageId;
+}
+
+// Append token to streaming message
+function appendToStreamingMessage(messageId, token) {
+    const messageDiv = document.getElementById(messageId);
+    if (!messageDiv) {
+        console.error('Message div not found:', messageId);
+        return;
+    }
+    
+    console.log('Appending to element:', messageDiv.className, 'ID:', messageId);
+    
+    const contentDiv = messageDiv.querySelector('.message-content');
+    if (!contentDiv) {
+        console.error('Content div not found in message:', messageId);
+        return;
+    }
+    
+    console.log('Content div classes:', contentDiv.className);
+    
+    let cursor = contentDiv.querySelector('.streaming-cursor');
+    
+    // Insert token before cursor
+    if (cursor) {
+        const textNode = document.createTextNode(token);
+        cursor.parentNode.insertBefore(textNode, cursor);
+    } else {
+        // Cursor missing - recreate it and append token
+        console.warn('Streaming cursor not found, recreating it');
+        contentDiv.appendChild(document.createTextNode(token));
+        
+        // Recreate cursor if this is the first token
+        if (contentDiv.textContent.length <= token.length) {
+            const newCursor = document.createElement('span');
+            newCursor.className = 'streaming-cursor';
+            newCursor.textContent = '▋';
+            contentDiv.appendChild(newCursor);
+        }
+    }
+    
+    // Auto-scroll
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Replace streaming message content with distorted version
+function replaceStreamingMessageContent(messageId, newContent) {
+    const messageDiv = document.getElementById(messageId);
+    if (!messageDiv) return;
+    
+    const contentDiv = messageDiv.querySelector('.message-content');
+    const cursor = contentDiv.querySelector('.streaming-cursor');
+    
+    // Clear current content but keep cursor
+    contentDiv.innerHTML = '';
+    contentDiv.appendChild(document.createTextNode(newContent));
+    if (cursor) {
+        contentDiv.appendChild(cursor);
+    }
+}
+
+// Finalize streaming message
+function finalizeStreamingMessage(messageId, contextData = null) {
+    const messageDiv = document.getElementById(messageId);
+    if (!messageDiv) return;
+    
+    const contentDiv = messageDiv.querySelector('.message-content');
+    
+    // Remove cursor
+    const cursor = contentDiv.querySelector('.streaming-cursor');
+    if (cursor) cursor.remove();
+    
+    // Remove streaming class
+    contentDiv.classList.remove('streaming');
+    
+    // Get accumulated text
+    const text = contentDiv.textContent.trim();
+    
+    // Check if we actually got content
+    if (!text || text.length === 0) {
+        console.warn('No content received from LLM');
+        contentDiv.textContent = '⚠️ No response received from LLM. The model may have timed out or returned an empty response.';
+        return;
+    }
+    
+    // Store original markdown as data attribute
+    messageDiv.setAttribute('data-markdown', text);
+    
+    // Parse as markdown
+    if (typeof marked !== 'undefined') {
+        contentDiv.innerHTML = marked.parse(text);
+    }
+    
+    // Add copy markdown button
+    addCopyButton(messageDiv, contentDiv, text);
+    
+    // Add sources if available
+    if (contextData && contextData.length > 0) {
+        const sourcesDiv = document.createElement('div');
+        sourcesDiv.className = 'message-sources';
+        sourcesDiv.innerHTML = '<strong>Sources:</strong><br>';
+        
+        contextData.forEach((source, i) => {
+            let scoreText = (typeof source.score === 'number') ? source.score.toFixed(2) : 'N/A';
+            let label = source.title || source.source || `Source ${i+1}`;
+            let tag;
+            if (source.url) {
+                tag = document.createElement('a');
+                tag.href = source.url;
+                tag.target = '_blank';
+                tag.className = 'source-tag web-source-link';
+                tag.textContent = `${label} (${scoreText})`;
+            } else {
+                tag = document.createElement('span');
+                tag.className = 'source-tag';
+                tag.textContent = `${label} (${scoreText})`;
+            }
+            sourcesDiv.appendChild(tag);
+            if (source.snippet) {
+                const snippetDiv = document.createElement('div');
+                snippetDiv.className = 'source-snippet';
+                snippetDiv.textContent = source.snippet;
+                sourcesDiv.appendChild(snippetDiv);
+            }
+        });
+        
+        contentDiv.appendChild(sourcesDiv);
+    }
+    
+    // Add timestamp
+    const timestamp = document.createElement('div');
+    timestamp.className = 'message-timestamp';
+    timestamp.textContent = new Date().toLocaleTimeString();
+    contentDiv.appendChild(timestamp);
 }
 
 // Add message to UI
@@ -385,7 +721,19 @@ function addMessage(role, content, isHtml = false, sources = null) {
     if (isHtml) {
         contentDiv.innerHTML = content;
     } else {
-        contentDiv.textContent = content;
+        // Store original markdown for assistant messages
+        if (role === 'assistant') {
+            messageDiv.setAttribute('data-markdown', content);
+        }
+        
+        // Parse markdown for assistant messages, plain text for user messages
+        if (role === 'assistant' && typeof marked !== 'undefined') {
+            contentDiv.innerHTML = marked.parse(content);
+            // Add copy markdown button
+            addCopyButton(messageDiv, contentDiv, content);
+        } else {
+            contentDiv.textContent = content;
+        }
     }
     
     // Add sources if provided
@@ -699,6 +1047,70 @@ function createNewSession() {
     if (firstItem) {
         firstItem.classList.add('active');
     }
+}
+
+// Add copy markdown button to message
+function addCopyButton(messageDiv, contentDiv, markdownText) {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-markdown-btn';
+    copyBtn.innerHTML = '📋 Copy Markdown';
+    copyBtn.title = 'Copy original markdown to clipboard';
+    
+    copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        
+        // Get markdown text from data attribute if not provided
+        const textToCopy = markdownText || messageDiv.getAttribute('data-markdown') || '';
+        
+        if (!textToCopy) {
+            console.error('No markdown text to copy');
+            copyBtn.innerHTML = '❌ No text';
+            setTimeout(() => {
+                copyBtn.innerHTML = '📋 Copy Markdown';
+            }, 2000);
+            return;
+        }
+        
+        try {
+            // Try modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(textToCopy);
+            } else {
+                // Fallback to older method
+                const textarea = document.createElement('textarea');
+                textarea.value = textToCopy;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                const success = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
+                if (!success) {
+                    throw new Error('execCommand failed');
+                }
+            }
+            
+            // Show success feedback
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '✅ Copied!';
+            copyBtn.classList.add('copied');
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.classList.remove('copied');
+            }, 2000);
+            
+        } catch (err) {
+            console.error('Failed to copy:', err, 'Text length:', textToCopy.length);
+            copyBtn.innerHTML = '❌ Failed';
+            setTimeout(() => {
+                copyBtn.innerHTML = '📋 Copy Markdown';
+            }, 2000);
+        }
+    });
+    
+    // Insert button at the top of content (before markdown rendering)
+    contentDiv.insertBefore(copyBtn, contentDiv.firstChild);
 }
 
 // Utility: Format time ago

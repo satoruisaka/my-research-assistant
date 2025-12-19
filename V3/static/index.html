@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MRA v3 - My Research Assistant</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <!-- <script src="markedmin.js"></script> -->
 </head>
 <body>
     <div class="container">
@@ -66,6 +68,14 @@
                 </div>
             </div>
 
+            <!-- File Upload Section -->
+            <div class="sidebar-section">
+                <h3>📤 Upload Document</h3>
+                <input type="file" id="file-upload-input" accept=".pdf,.txt,.csv,.md,.markdown" style="display: none;">
+                <button class="upload-btn" id="upload-btn">Choose File</button>
+                <div id="upload-status" class="upload-status"></div>
+            </div>
+
             <div class="sidebar-section">
                 <h3>🌐 Web Search</h3>
                 <div class="checkbox-item">
@@ -95,16 +105,16 @@
                 <div class="slider-group">
                     <label>
                         Max Tokens
-                        <span id="max-tokens-value">2000</span>
+                        <span id="max-tokens-value">128000</span>
                     </label>
-                    <input type="range" id="max-tokens" min="500" max="128000" step="500" value="4000">
+                    <input type="range" id="max-tokens" min="500" max="128000" step="500" value="128000">
                 </div>
                 <div class="slider-group">
                     <label>
                         Retrieval Top-K
                         <span id="top-k-value">5</span>
                     </label>
-                    <input type="range" id="top-k" min="1" max="20" step="1" value="5">
+                    <input type="range" id="top-k" min="1" max="40" step="1" value="5">
                 </div>
             </div>
 
