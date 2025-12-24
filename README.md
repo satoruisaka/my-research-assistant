@@ -14,7 +14,7 @@ MRA is my personal tool for research, designed as a unified point of interaction
 
 ---
 
-![MRA_v3 screenshot](MRA_v3_screenshot.jpg)
+![MRA_v3 screenshot](MRA_screenshot.jpg)
 
 ---
 
@@ -91,4 +91,5 @@ cd
 cd ..\MRA_v3
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
+
 
