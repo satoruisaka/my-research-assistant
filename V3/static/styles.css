@@ -886,6 +886,9 @@ input:checked + .toggle-slider:before {
     text-align: center;
     transition: var(--transition);
     font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .panel-tab.active {
@@ -894,12 +897,30 @@ input:checked + .toggle-slider:before {
     border-color: var(--primary);
 }
 
+.panel-toggle {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+    user-select: none;
+    padding: 0.25rem;
+}
+
+.panel-toggle:hover {
+    transform: scale(1.2);
+}
+
 .panel-content {
     display: none;
 }
 
 .panel-content.active {
     display: block;
+    transition: max-height 0.3s ease;
+}
+
+.panel-content.collapsed {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0;
 }
 
 /* Context Items */

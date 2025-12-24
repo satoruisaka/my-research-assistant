@@ -7,13 +7,16 @@ const state = {
     context: [],
     uploadedDocuments: [],  // Store uploaded document content
     settings: {
-        model: 'ministral-3:8b',
+        model: 'ministral-3:latest',
         temperature: 0.7,
-        maxTokens: 128000,
+        topP: 0.9,
+        topKGen: 40,
+        maxTokens: 32000,
+        contextWindow: 128000,
         topK: 20,
         searchScope: {
-            referencePapers: true,
-            myPapers: true,
+            referencePapers: false,
+            myPapers: false,
             sessions: false,
             webCache: false
         },
@@ -107,9 +110,24 @@ function initializeEventListeners() {
         document.getElementById('temp-value').textContent = e.target.value;
     });
     
+    document.getElementById('top-p').addEventListener('input', (e) => {
+        state.settings.topP = parseFloat(e.target.value);
+        document.getElementById('top-p-value').textContent = e.target.value;
+    });
+    
+    document.getElementById('top-k-gen').addEventListener('input', (e) => {
+        state.settings.topKGen = parseInt(e.target.value);
+        document.getElementById('top-k-gen-value').textContent = e.target.value;
+    });
+    
     document.getElementById('max-tokens').addEventListener('input', (e) => {
         state.settings.maxTokens = parseInt(e.target.value);
         document.getElementById('max-tokens-value').textContent = e.target.value;
+    });
+    
+    document.getElementById('context-window').addEventListener('input', (e) => {
+        state.settings.contextWindow = parseInt(e.target.value);
+        document.getElementById('context-window-value').textContent = e.target.value;
     });
     
     document.getElementById('top-k').addEventListener('input', (e) => {
@@ -175,6 +193,15 @@ function initializeEventListeners() {
     
     // New session
     document.getElementById('new-session-btn').addEventListener('click', createNewSession);
+    
+    // Sessions panel toggle
+    document.getElementById('sessions-toggle').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.getElementById('sessions-panel');
+        const toggle = document.getElementById('sessions-toggle');
+        panel.classList.toggle('collapsed');
+        toggle.textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
+    });
     
     // File upload
     document.getElementById('upload-btn').addEventListener('click', () => {
@@ -438,7 +465,10 @@ async function sendMessage() {
             },
             model: state.settings.model,
             temperature: state.settings.temperature,
+            top_p: state.settings.topP,
+            top_k: state.settings.topKGen,
             max_tokens: state.settings.maxTokens,
+            num_ctx: state.settings.contextWindow,
             top_k_retrieval: state.settings.topK,
             distortion_mode: state.settings.distortion.mode,
             distortion_tone: state.settings.distortion.tone,

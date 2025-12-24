@@ -46,12 +46,12 @@
                 <h3>📚 Search Scope</h3>
                 <div class="checkbox-group">
                     <div class="checkbox-item">
-                        <input type="checkbox" id="scope-reference" checked>
+                        <input type="checkbox" id="scope-reference">
                         <label for="scope-reference">Reference Papers</label>
                         <span class="count" id="count-reference">823</span>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="scope-authored" checked>
+                        <input type="checkbox" id="scope-authored">
                         <label for="scope-authored">My Papers</label>
                         <span class="count" id="count-authored">7</span>
                     </div>
@@ -100,21 +100,42 @@
                         Temperature
                         <span id="temp-value">0.7</span>
                     </label>
-                    <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                    <input type="range" id="temperature" min="0" max="5" step="0.1" value="0.7">
                 </div>
                 <div class="slider-group">
                     <label>
-                        Max Tokens
-                        <span id="max-tokens-value">128000</span>
+                        Top P
+                        <span id="top-p-value">0.9</span>
                     </label>
-                    <input type="range" id="max-tokens" min="500" max="128000" step="500" value="128000">
+                    <input type="range" id="top-p" min="0" max="0.98" step="0.01" value="0.9">
                 </div>
                 <div class="slider-group">
                     <label>
-                        Retrieval Top-K
-                        <span id="top-k-value">5</span>
+                        Top K
+                        <span id="top-k-gen-value">40</span>
                     </label>
-                    <input type="range" id="top-k" min="1" max="40" step="1" value="5">
+                    <input type="range" id="top-k-gen" min="0" max="120" step="1" value="40">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Max Output Tokens
+                        <span id="max-tokens-value">8000</span>
+                    </label>
+                    <input type="range" id="max-tokens" min="500" max="64000" step="500" value="8000">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Context Window
+                        <span id="context-window-value">128000</span>
+                    </label>
+                    <input type="range" id="context-window" min="8000" max="256000" step="1000" value="128000">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Max Retrieval Results
+                        <span id="top-k-value">20</span>
+                    </label>
+                    <input type="range" id="top-k" min="1" max="50" step="1" value="20">
                 </div>
             </div>
 
@@ -213,7 +234,10 @@
         <!-- Right Panel: Sessions -->
         <aside class="right-panel">
             <div class="panel-tabs">
-                <div class="panel-tab active" data-tab="sessions">📋 Sessions</div>
+                <div class="panel-tab active" data-tab="sessions">
+                    <span>📋 Sessions</span>
+                    <span class="panel-toggle" id="sessions-toggle">▼</span>
+                </div>
             </div>
 
             <!-- Sessions Panel -->
