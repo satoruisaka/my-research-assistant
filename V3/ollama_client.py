@@ -20,7 +20,10 @@ from dataclasses import dataclass
 import ollama
 import requests
 
-from config import NUM_CTX, DEFAULT_MODEL
+from config import (
+    NUM_CTX, DEFAULT_MODEL, DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS,
+    DEFAULT_TEMPERATURE, DEFAULT_TOP_P, DEFAULT_TOP_K, DEFAULT_REPEAT_PENALTY
+)
 
 
 @dataclass
@@ -34,11 +37,11 @@ class OllamaConfig:
 class GenerationParams:
     """Parameters for text generation."""
     model: str
-    temperature: float = 0.7
-    max_tokens: int = NUM_CTX
-    top_k: int = 40
-    top_p: float = 0.9
-    repeat_penalty: float = 1.1
+    temperature: float = DEFAULT_TEMPERATURE
+    max_tokens: int = DEFAULT_OUTPUT_TOKENS
+    top_k: int = DEFAULT_TOP_K
+    top_p: float = DEFAULT_TOP_P
+    repeat_penalty: float = DEFAULT_REPEAT_PENALTY
     num_ctx: int = NUM_CTX
     stop: Optional[List[str]] = None
     
@@ -182,11 +185,11 @@ class OllamaClient:
         prompt: str,
         model: str = DEFAULT_MODEL,
         system: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = NUM_CTX,
-        top_k: int = 40,
-        top_p: float = 0.9,
-        repeat_penalty: float = 1.1,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_OUTPUT_TOKENS,
+        top_k: int = DEFAULT_TOP_K,
+        top_p: float = DEFAULT_TOP_P,
+        repeat_penalty: float = DEFAULT_REPEAT_PENALTY,
         num_ctx: int = NUM_CTX,
         stop: Optional[List[str]] = None
     ) -> str:
@@ -262,11 +265,11 @@ class OllamaClient:
         prompt: str,
         model: str = DEFAULT_MODEL,
         system: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = NUM_CTX,
-        top_k: int = 40,
-        top_p: float = 0.9,
-        repeat_penalty: float = 1.1,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_OUTPUT_TOKENS,
+        top_k: int = DEFAULT_TOP_K,
+        top_p: float = DEFAULT_TOP_P,
+        repeat_penalty: float = DEFAULT_REPEAT_PENALTY,
         num_ctx: int = NUM_CTX,
         stop: Optional[List[str]] = None
     ) -> Generator[str, None, None]:
@@ -346,9 +349,11 @@ class OllamaClient:
         self,
         messages: List[Dict[str, str]],
         model: str = DEFAULT_MODEL,
-        temperature: float = 0.7,
-        max_tokens: int = NUM_CTX,
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_OUTPUT_TOKENS,
         num_ctx: int = NUM_CTX,
+        top_p: float = DEFAULT_TOP_P,
+        top_k: int = DEFAULT_TOP_K,
         stream: bool = False
     ) -> str:
         """
@@ -360,6 +365,8 @@ class OllamaClient:
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             num_ctx: Context window size in tokens
+            top_p: Top-p (nucleus) sampling
+            top_k: Top-k sampling
             stream: Ignored (use chat_stream for streaming)
             
         Returns:
@@ -379,7 +386,9 @@ class OllamaClient:
                 options={
                     'temperature': temperature,
                     'num_predict': max_tokens,
-                    'num_ctx': num_ctx
+                    'num_ctx': num_ctx,
+                    'top_p': top_p,
+                    'top_k': top_k
                 }
             )
             
@@ -393,9 +402,11 @@ class OllamaClient:
         self,
         messages: List[Dict[str, str]],
         model: str = DEFAULT_MODEL,
-        temperature: float = 0.7,
-        max_tokens: int = NUM_CTX,
-        num_ctx: int = NUM_CTX
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int = DEFAULT_OUTPUT_TOKENS,
+        num_ctx: int = NUM_CTX,
+        top_p: float = DEFAULT_TOP_P,
+        top_k: int = DEFAULT_TOP_K
     ) -> Generator[str, None, None]:
         """
         Multi-turn chat completion with streaming.
@@ -406,6 +417,8 @@ class OllamaClient:
             temperature: Sampling temperature
             max_tokens: Maximum tokens to generate
             num_ctx: Context window size in tokens
+            top_p: Top-p (nucleus) sampling
+            top_k: Top-k sampling
             
         Yields:
             Token strings as they are generated
@@ -424,7 +437,9 @@ class OllamaClient:
                 options={
                     'temperature': temperature,
                     'num_predict': max_tokens,
-                    'num_ctx': num_ctx
+                    'num_ctx': num_ctx,
+                    'top_p': top_p,
+                    'top_k': top_k
                 }
             )
             

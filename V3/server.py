@@ -34,7 +34,7 @@ from retrieval_manager import RetrievalManager, SearchScope
 from web_search import WebSearchClient
 from ollama_client import OllamaClient
 from twistedpair_client import TwistedPairClient, DistortionMode, DistortionTone
-from config import NUM_CTX, DEFAULT_MODEL
+from config import NUM_CTX, DEFAULT_MODEL, MAX_OUTPUT_TOKENS, MAX_TEMPERATURE, MAX_TOP_P, MAX_TOP_K
 
 
 # Configure logging
@@ -52,12 +52,15 @@ logger = logging.getLogger(__name__)
 class ChatMessageRequest(BaseModel):
     """Request for /api/chat/message"""
     session_id: str = Field(..., description="Session ID or 'new' for new session")
-    message: str = Field(..., min_length=1, max_length=100000, description="User message (max 100,000 characters)")
+    message: str = Field(..., min_length=1, max_length=1000000, description="User message (max 1,000,000 characters)")
     
     # LLM settings
     model: str = DEFAULT_MODEL
-    temperature: float = Field(0.7, ge=0.0, le=2.0)
-    max_tokens: int = Field(4000, ge=100, le=NUM_CTX)
+    temperature: float = Field(0.7, ge=0.0, le=MAX_TEMPERATURE)
+    top_p: float = Field(0.9, ge=0.0, le=MAX_TOP_P)
+    top_k: int = Field(40, ge=0, le=MAX_TOP_K)
+    max_tokens: int = Field(MAX_OUTPUT_TOKENS, ge=100, le=MAX_OUTPUT_TOKENS)
+    num_ctx: int = Field(NUM_CTX, ge=1000, le=NUM_CTX)
     
     # Retrieval settings
     use_rag: bool = True
@@ -243,6 +246,7 @@ async def chat_message_stream(request: ChatMessageRequest):
             model=request.model,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
+            num_ctx=request.num_ctx,
             top_k_retrieval=request.top_k_retrieval,
             use_rag=request.use_rag,
             use_web_search=request.use_web_search,
@@ -347,7 +351,10 @@ async def chat_message_stream(request: ChatMessageRequest):
                     messages=messages,
                     model=settings.model,
                     temperature=settings.temperature,
-                    max_tokens=settings.max_tokens
+                    top_p=settings.top_p,
+                    top_k=settings.top_k,
+                    max_tokens=settings.max_tokens,
+                    num_ctx=settings.num_ctx
                 ):
                     full_response += token
                     yield f"data: {json_lib.dumps({'type': 'token', 'content': token})}\n\n"
@@ -457,7 +464,10 @@ async def chat_message(request: ChatMessageRequest):
         settings = SessionSettings(
             model=request.model,
             temperature=request.temperature,
+            top_p=request.top_p,
+            top_k=request.top_k,
             max_tokens=request.max_tokens,
+            num_ctx=request.num_ctx,
             top_k_retrieval=request.top_k_retrieval,
             use_rag=request.use_rag,
             use_web_search=request.use_web_search,

@@ -25,7 +25,7 @@ from retrieval_manager import RetrievalManager, SearchScope
 from web_search import WebSearchClient
 from ollama_client import OllamaClient
 from twistedpair_client import TwistedPairClient, DistortionMode, DistortionTone
-from config import NUM_CTX, DEFAULT_MODEL
+from config import NUM_CTX, DEFAULT_MODEL, MAX_OUTPUT_TOKENS, MAX_TOP_P, MAX_TOP_K
 
 
 @dataclass
@@ -62,7 +62,10 @@ class SessionSettings:
     """Session-level settings."""
     model: str = DEFAULT_MODEL
     temperature: float = 0.7
-    max_tokens: int = NUM_CTX
+    top_p: float = 0.9
+    top_k: int = 40
+    max_tokens: int = MAX_OUTPUT_TOKENS
+    num_ctx: int = NUM_CTX
     top_k_retrieval: int = 20
     use_rag: bool = True
     use_web_search: bool = False
@@ -489,7 +492,10 @@ class ChatManager:
                 messages=messages,
                 model=session.settings.model,
                 temperature=session.settings.temperature,
-                max_tokens=session.settings.max_tokens
+                top_p=session.settings.top_p,
+                top_k=session.settings.top_k,
+                max_tokens=session.settings.max_tokens,
+                num_ctx=session.settings.num_ctx
             )
         except Exception as e:
             self._log(f"Ollama generation failed: {e}")

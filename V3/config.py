@@ -20,30 +20,6 @@ MODELS_DIR = PROJECT_ROOT / "models"
 for dir_path in [DATA_DIR, FAISS_DIR, MODELS_DIR]:
     dir_path.mkdir(exist_ok=True)
 
-# === SOURCE DIRECTORIES ===
-# External directories containing source documents
-# Override via environment variables if needed
-
-# Reference papers directory (~823 PDFs)
-SOURCE_REFERENCE_DIR = Path(os.getenv(
-    "REFERENCE_PAPERS_DIR",
-    "/mnt/c/Users/sator/Documents/linuxproject/MyReferences"
-))
-
-# Your authored papers directory (7 PDFs)
-SOURCE_AUTHORED_DIR = Path(os.getenv(
-    "MY_PAPERS_DIR",
-    "/mnt/c/Users/sator/Documents/linuxproject/MyAuthoredPapers"
-))
-
-# Aliases for backward compatibility with update_paper_indices.py
-REFERENCE_PAPERS_DIR = SOURCE_REFERENCE_DIR
-MY_PAPERS_DIR = SOURCE_AUTHORED_DIR
-
-# Debug: Show what was loaded (commented out to reduce console noise)
-# print(f"📁 Reference Papers directory: {SOURCE_REFERENCE_DIR}")
-# print(f"📁 Authored Papers directory: {SOURCE_AUTHORED_DIR}")
-
 # Internal data directories (created automatically)
 WEB_CACHE_DIR = DATA_DIR / "web_cache"
 SESSIONS_DIR = DATA_DIR / "sessions"
@@ -52,17 +28,7 @@ SESSIONS_DIR = DATA_DIR / "sessions"
 for dir_path in [WEB_CACHE_DIR, SESSIONS_DIR]:
     dir_path.mkdir(parents=True, exist_ok=True)
 
-# Validate external source directories exist
-if not SOURCE_REFERENCE_DIR.exists():
-    print(f"⚠️  WARNING: Reference Papers directory not found: {SOURCE_REFERENCE_DIR}")
-    print(f"   To fix: Create directory or set MRA_REFERENCE_PAPERS_DIR environment variable")
 
-if not SOURCE_AUTHORED_DIR.exists():
-    print(f"⚠️  WARNING: Authored Papers directory not found: {SOURCE_AUTHORED_DIR}")
-    print(f"   To fix: Create directory or set MRA_MY_PAPERS_DIR environment variable")
-
-# NOTE: New reference papers added via API go to reference_papers_delta.index
-# Delta index handles incremental additions without separate directory
 
 # === OLLAMA SETTINGS ===
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -70,19 +36,30 @@ OLLAMA_API_GENERATE = f"{OLLAMA_URL}/api/generate"
 OLLAMA_API_CHAT = f"{OLLAMA_URL}/api/chat"
 
 # Available LLM models (must be installed: ollama list)
-AVAILABLE_LLM_MODELS = [
-    "deepseek-r1:8b",
-    "dolphin3:latest",
-    "gemma3:4b",
-    "llama3.1:8b",
-    "mistral:latest",
-    "openchat:latest",
-    "phi3:14b",
-    "qwen3:latest"
-]
+# AVAILABLE_LLM_MODELS = ["qwen3:latest"]
 
-DEFAULT_MODEL = "ministral-3:8b"
+# === LLM model SETTINGS ===
+# MAX_CHAT_HISTORY_TURNS = 10  # Keep last N turns in context
+DEFAULT_MODEL = "ministral-3:latest"
 NUM_CTX = 128000  # Context window (tokens) - keep this value not too high for low GPU machines
+
+# Default output tokens
+DEFAULT_OUTPUT_TOKENS = 8000
+MAX_OUTPUT_TOKENS = 32000
+
+# Default sampling parameters
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_TOP_P = 0.9
+DEFAULT_TOP_K = 40
+DEFAULT_REPEAT_PENALTY = 1.1
+
+# Maximum allowed values (for validation)
+MAX_TEMPERATURE = 5.0
+MAX_TOP_P = 0.98
+MAX_TOP_K = 120
+
+FREQUENCY_PENALTY = 0.0
+PRESENCE_PENALTY = 0.0
 
 # === TWISTEDPAIR V2 INTEGRATION ===
 TWISTEDPAIR_URL = os.getenv("TWISTEDPAIR_URL", "http://localhost:8001")
@@ -113,6 +90,42 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/106.0.0.0",
     "Mozilla/5.0 (X11; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0"
 ]
+
+# === SOURCE DIRECTORIES ===
+# External directories containing source documents
+# Override via environment variables if needed
+
+# Reference papers directory (~823 PDFs)
+SOURCE_REFERENCE_DIR = Path(os.getenv(
+    "REFERENCE_PAPERS_DIR",
+    "/mnt/c/Users/sator/linuxproject/MyReferences"
+))
+
+# Your authored papers directory (7 PDFs)
+SOURCE_AUTHORED_DIR = Path(os.getenv(
+    "MY_PAPERS_DIR",
+    "/mnt/c/Users/sator/linuxproject/MyAuthoredPapers"
+))
+
+# Aliases for backward compatibility with update_paper_indices.py
+REFERENCE_PAPERS_DIR = SOURCE_REFERENCE_DIR
+MY_PAPERS_DIR = SOURCE_AUTHORED_DIR
+
+# Debug: Show what was loaded (commented out to reduce console noise)
+# print(f"📁 Reference Papers directory: {SOURCE_REFERENCE_DIR}")
+# print(f"📁 Authored Papers directory: {SOURCE_AUTHORED_DIR}")
+
+# Validate external source directories exist
+if not SOURCE_REFERENCE_DIR.exists():
+    print(f"⚠️  WARNING: Reference Papers directory not found: {SOURCE_REFERENCE_DIR}")
+    print(f"   To fix: Create directory or set MRA_REFERENCE_PAPERS_DIR environment variable")
+
+if not SOURCE_AUTHORED_DIR.exists():
+    print(f"⚠️  WARNING: Authored Papers directory not found: {SOURCE_AUTHORED_DIR}")
+    print(f"   To fix: Create directory or set MRA_MY_PAPERS_DIR environment variable")
+
+# NOTE: New reference papers added via API go to reference_papers_delta.index
+# Delta index handles incremental additions without separate directory
 
 # === FAISS INDICES CONFIGURATION ===
 EMBEDDING_MODEL = "BAAI/bge-large-en-v1.5"  # Alternative: more compatible than Alibaba-NLP
@@ -174,11 +187,6 @@ TOKENIZER = "cl100k_base"  # tiktoken model for GPT-4
 TOP_K_RETRIEVAL = 20  # Initial FAISS search
 TOP_K_RERANK = 5      # After reranking (optional)
 SIMILARITY_THRESHOLD = 0.7  # Minimum score to include
-
-# === CHAT SETTINGS ===
-MAX_CHAT_HISTORY_TURNS = 10  # Keep last N turns in context
-MAX_CONTEXT_TOKENS = 28000   # Reserve 4k for response
-MAX_OUTPUT_TOKENS = 3000
 
 # === CACHE SETTINGS ===
 CACHE_EMBEDDINGS = True  # Store embeddings in metadata for fast rebuild
