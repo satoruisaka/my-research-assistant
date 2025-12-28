@@ -1,8 +1,10 @@
 # MRA - My Research Assistant v3
 
-*Advanced research assistant with RAG, Q&A, web search, and rhetorical distortion*
+***Personal soundboard and information retrieval with local LLM, RAG, FAISS, Web search, session history, and rhetorical distortion***
 
-December 5, 2025  
+![MRAicon](MRAicon100x100.png)
+
+December 5, 2025
 
 ## Executive Summary
 
