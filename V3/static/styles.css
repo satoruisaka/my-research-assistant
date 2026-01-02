@@ -432,8 +432,10 @@ input:checked + .toggle-slider:before {
 .exchange-container {
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible;
     background: var(--bg-light);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .exchange-container.collapsed .exchange-content {
@@ -458,6 +460,8 @@ input:checked + .toggle-slider:before {
 
 .exchange-content {
     padding: 0;
+    min-width: 0;
+    overflow: visible;
 }
 
 .exchange-content .message {
@@ -478,6 +482,7 @@ input:checked + .toggle-slider:before {
     display: flex;
     gap: 1rem;
     max-width: 85%;
+    min-width: 0;
     animation: slideIn 0.3s ease;
 }
 
@@ -544,6 +549,28 @@ input:checked + .toggle-slider:before {
     overflow-wrap: break-word;
     word-wrap: break-word;
     max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+.message-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.message-content::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+
+.message-content::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+
+.message-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.3);
 }
 
 /* Streaming message cursor */
