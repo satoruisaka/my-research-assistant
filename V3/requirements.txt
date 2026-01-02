@@ -1,8 +1,11 @@
-# MRA_v3 Dependencies
-
+# MRA Dependencies
+# Update 01-01-2026 (tried and confirmed)
 # ============================================================================
-# INSTALLATION INSTRUCTIONS (WSL + Virtual Environment)
+# INSTALLATION INSTRUCTIONS for RTX5090 GPU (WSL + Virtual Environment)
 # ============================================================================
+# This installation script is built for python 3.10.10
+# Use virtual environments to avoid conflicts with other projects.
+#
 # 1. Create virtual environment:
 #    python -m venv .venv
 #
@@ -12,27 +15,30 @@
 # 3. Update pip:
 #    pip install -U pip
 #
-# 4. IMPORTANT: Install numpy FIRST (required for faiss-gpu):
-#    pip install numpy==1.26.0
-#
-# 5. Install system dependencies (OCR):
+# 4. Install system dependencies (OCR):
 #    sudo apt install -y tesseract-ocr pngquant ghostscript cmake g++ libjpeg-dev libpng-dev libtiff-dev zlib1g-dev
 #
+# 5. Install PyTorch 2.6+ FIRST (required for RTX 5090 sm_120 support):
+#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+#
 # 6. Install remaining Python packages:
-#    pip install -r requirements.txt
+#    pip install -r requirements_01-01-2026forRTX5090.txt
 # ============================================================================
+
+
+# Embedding and FAISS
+numpy==2.2.6
+
+faiss-gpu-cu12==1.13.1
 
 # Core
 python-dotenv==1.0.0
 requests==2.32.5
 
-# Embedding and FAISS
-# NOTE: numpy==1.26.0 MUST BE INSTALLED SEPARATELY FIRST (see instructions above)
-torch==2.5.1
-transformers==4.25.1
-sentence-transformers==2.2.2
-huggingface-hub==0.10.1
-faiss-gpu==1.7.2  # For GPU (CUDA required). Use faiss-cpu==1.7.2 if no GPU
+# Updated for PyTorch 2.6+ compatibility
+transformers>=4.46.0
+sentence-transformers>=3.3.1
+huggingface-hub>=0.26.0
 tqdm==4.67.1
 
 # Web framework
@@ -62,7 +68,8 @@ ocrmypdf==16.12.0
 # Chunking
 tiktoken==0.12.0
 
-
+# ollama
+ollama==0.6.1
 
 # Development
 pytest==7.4.3

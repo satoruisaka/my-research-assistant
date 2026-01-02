@@ -762,6 +762,7 @@ async def upload_file(request: Request):
 
 # Serve static files from ./static directory
 static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/")

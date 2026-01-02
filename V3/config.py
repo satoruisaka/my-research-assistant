@@ -98,13 +98,13 @@ USER_AGENTS = [
 # Reference papers directory (~823 PDFs)
 SOURCE_REFERENCE_DIR = Path(os.getenv(
     "REFERENCE_PAPERS_DIR",
-    "/mnt/c/Users/sator/linuxproject/MyReferences"
+    "/home/sator/project/MyReferences"
 ))
 
 # Your authored papers directory (7 PDFs)
 SOURCE_AUTHORED_DIR = Path(os.getenv(
     "MY_PAPERS_DIR",
-    "/mnt/c/Users/sator/linuxproject/MyAuthoredPapers"
+    "/home/sator/project/MyAuthoredPapers"
 ))
 
 # Aliases for backward compatibility with update_paper_indices.py
