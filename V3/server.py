@@ -757,6 +757,103 @@ async def upload_file(request: Request):
 
 
 # ============================================================================
+# News Articles Endpoints
+# ============================================================================
+
+@app.get("/api/news-articles/list")
+async def list_news_articles():
+    """
+    List all news article files from the news_articles directory.
+    
+    Returns:
+        - files: List of file info (filename, size, modified_time)
+        - count: Total number of files
+        - path: Directory path
+    """
+    try:
+        from config import DATA_DIR
+        news_dir = DATA_DIR / "markdown" / "news_articles"
+        
+        if not news_dir.exists():
+            return JSONResponse({
+                "files": [],
+                "count": 0,
+                "path": str(news_dir),
+                "message": "News articles directory does not exist"
+            })
+        
+        # Get all markdown files
+        files_info = []
+        for file_path in sorted(news_dir.glob("*.md"), reverse=True):  # Most recent first
+            stat = file_path.stat()
+            files_info.append({
+                "filename": file_path.name,
+                "size": stat.st_size,
+                "size_kb": round(stat.st_size / 1024, 2),
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "modified_human": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            })
+        
+        return JSONResponse({
+            "files": files_info,
+            "count": len(files_info),
+            "path": str(news_dir),
+            "message": f"Found {len(files_info)} news article(s)"
+        })
+        
+    except Exception as e:
+        logger.error(f"List news articles error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/news-articles/read/{filename}")
+async def read_news_article(filename: str):
+    """
+    Read a specific news article file.
+    
+    Args:
+        filename: Name of the markdown file to read
+    
+    Returns:
+        - filename: Original filename
+        - content: File content (markdown)
+        - size: File size in bytes
+        - modified: Last modified timestamp
+    """
+    try:
+        from config import DATA_DIR
+        news_dir = DATA_DIR / "markdown" / "news_articles"
+        file_path = news_dir / filename
+        
+        # Security check - prevent directory traversal
+        if not file_path.resolve().is_relative_to(news_dir.resolve()):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
+        
+        # Read file content
+        content = file_path.read_text(encoding='utf-8')
+        stat = file_path.stat()
+        
+        return JSONResponse({
+            "filename": filename,
+            "content": content,
+            "size": stat.st_size,
+            "size_kb": round(stat.st_size / 1024, 2),
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            "modified_human": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+            "message": "File read successfully"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Read news article error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # Static File Serving (Web UI)
 # ============================================================================
 
