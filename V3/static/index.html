@@ -79,6 +79,13 @@
                 <div id="upload-status" class="upload-status"></div>
             </div>
 
+            <!-- News Articles Browser Section -->
+            <div class="sidebar-section">
+                <h3>📰 News Articles</h3>
+                <button class="upload-btn" id="browse-news-btn">Browse Articles</button>
+                <div id="news-articles-status" class="upload-status"></div>
+            </div>
+
             <div class="sidebar-section">
                 <h3>🌐 Web Search</h3>
                 <div class="checkbox-item">
@@ -256,6 +263,30 @@
                 </div>
             </div>
         </aside>
+    </div>
+
+    <!-- News Articles Browser Modal -->
+    <div id="news-modal" class="modal" style="display: none;">
+        <div class="modal-content news-modal-content">
+            <div class="modal-header">
+                <h2>📰 News Articles Browser</h2>
+                <button class="modal-close" id="news-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="news-search-box">
+                    <input type="text" id="news-search-input" placeholder="Filter articles by title..." />
+                </div>
+                <div id="news-loading" class="news-loading" style="display: none;">
+                    <p>Loading articles...</p>
+                </div>
+                <div id="news-articles-list" class="news-articles-list">
+                    <!-- Articles will be loaded here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="news-count-display">0 articles</span>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

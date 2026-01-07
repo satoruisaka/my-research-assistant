@@ -7,7 +7,7 @@ const state = {
     context: [],
     uploadedDocuments: [],  // Store uploaded document content
     settings: {
-        model: 'ministral-3:latest',
+        model: 'ministral-3:14b',
         temperature: 0.7,
         topP: 0.9,
         topKGen: 40,
@@ -209,6 +209,18 @@ function initializeEventListeners() {
     });
     
     document.getElementById('file-upload-input').addEventListener('change', handleFileUpload);
+    
+    // News articles browser
+    document.getElementById('browse-news-btn').addEventListener('click', openNewsArticlesBrowser);
+    document.getElementById('news-modal-close').addEventListener('click', closeNewsArticlesBrowser);
+    document.getElementById('news-search-input').addEventListener('input', filterNewsArticles);
+    
+    // Close modal when clicking outside
+    document.getElementById('news-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'news-modal') {
+            closeNewsArticlesBrowser();
+        }
+    });
 }
 
 // Switch panel tabs
@@ -1164,3 +1176,211 @@ function timeAgo(date) {
     
     return 'Just now';
 }
+
+// ============================================================================
+// News Articles Browser
+// ============================================================================
+
+let allNewsArticles = [];  // Store all articles for filtering
+
+// Open news articles browser modal
+async function openNewsArticlesBrowser() {
+    const modal = document.getElementById('news-modal');
+    const loadingDiv = document.getElementById('news-loading');
+    const listDiv = document.getElementById('news-articles-list');
+    const statusDiv = document.getElementById('news-articles-status');
+    
+    // Show modal
+    modal.style.display = 'flex';
+    loadingDiv.style.display = 'block';
+    listDiv.innerHTML = '';
+    
+    try {
+        // Fetch news articles list from API
+        const response = await fetch(`${API_BASE}/api/news-articles/list`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch news articles');
+        }
+        
+        const data = await response.json();
+        allNewsArticles = data.files || [];
+        
+        loadingDiv.style.display = 'none';
+        
+        if (allNewsArticles.length === 0) {
+            listDiv.innerHTML = '<p class="no-articles">No news articles found.</p>';
+            document.getElementById('news-count-display').textContent = '0 articles';
+            return;
+        }
+        
+        // Display articles
+        displayNewsArticles(allNewsArticles);
+        document.getElementById('news-count-display').textContent = `${allNewsArticles.length} article(s)`;
+        
+    } catch (error) {
+        console.error('Failed to load news articles:', error);
+        loadingDiv.style.display = 'none';
+        listDiv.innerHTML = `<p class="error-message">❌ Error: ${error.message}</p>`;
+    }
+}
+
+// Close news articles browser modal
+function closeNewsArticlesBrowser() {
+    const modal = document.getElementById('news-modal');
+    modal.style.display = 'none';
+    document.getElementById('news-search-input').value = '';
+}
+
+// Display news articles in the list
+function displayNewsArticles(articles) {
+    const listDiv = document.getElementById('news-articles-list');
+    
+    if (articles.length === 0) {
+        listDiv.innerHTML = '<p class="no-articles">No articles match your filter.</p>';
+        return;
+    }
+    
+    listDiv.innerHTML = articles.map(article => {
+        // Parse filename to extract title (remove timestamp prefix)
+        const titleMatch = article.filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
+        const displayTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ') : article.filename;
+        
+        return `
+            <div class="news-article-item" data-filename="${article.filename}">
+                <div class="news-article-header">
+                    <h4 class="news-article-title">${displayTitle}</h4>
+                    <span class="news-article-date">${article.modified_human}</span>
+                </div>
+                <div class="news-article-meta">
+                    <span class="news-article-size">${article.size_kb} KB</span>
+                    <button class="news-article-btn" onclick="loadNewsArticle('${article.filename}')">
+                        📖 Load to Context
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter news articles by search term
+function filterNewsArticles(event) {
+    const searchTerm = event.target.value.toLowerCase();
+    
+    if (searchTerm === '') {
+        displayNewsArticles(allNewsArticles);
+        document.getElementById('news-count-display').textContent = `${allNewsArticles.length} article(s)`;
+        return;
+    }
+    
+    const filtered = allNewsArticles.filter(article => 
+        article.filename.toLowerCase().includes(searchTerm)
+    );
+    
+    displayNewsArticles(filtered);
+    document.getElementById('news-count-display').textContent = `${filtered.length} of ${allNewsArticles.length} article(s)`;
+}
+
+// Load a specific news article to context
+async function loadNewsArticle(filename) {
+    const statusDiv = document.getElementById('news-articles-status');
+    
+    try {
+        statusDiv.innerHTML = `<span style="color: var(--info);">⏳ Loading ${filename}...</span>`;
+        
+        // Fetch article content
+        const response = await fetch(`${API_BASE}/api/news-articles/read/${encodeURIComponent(filename)}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to load article');
+        }
+        
+        const data = await response.json();
+        
+        // Store in uploaded documents state (reuse existing infrastructure)
+        state.uploadedDocuments.push({
+            filename: data.filename,
+            content: data.content,
+            token_count: Math.ceil(data.content.length / 4), // Rough estimate
+            uploaded_at: new Date().toISOString(),
+            source: 'news_articles'
+        });
+        
+        console.log('News article loaded to context:', data.filename);
+        
+        // Close modal
+        closeNewsArticlesBrowser();
+        
+        // Show success in sidebar
+        statusDiv.innerHTML = `<span style="color: var(--success);">✅ Loaded: ${filename}</span>`;
+        
+        // Add to chat as system message
+        addNewsArticleToChat(data);
+        
+        // Clear status after 3 seconds
+        setTimeout(() => {
+            statusDiv.innerHTML = '';
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Failed to load article:', error);
+        statusDiv.innerHTML = `<span style="color: var(--danger);">❌ ${error.message}</span>`;
+    }
+}
+
+// Add news article to chat as system message
+function addNewsArticleToChat(articleData) {
+    const chatMessages = document.getElementById('chat-messages');
+    
+    // Parse title from filename
+    const titleMatch = articleData.filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
+    const displayTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ') : articleData.filename;
+    
+    // Create new exchange container
+    const exchangeId = `exchange-news-${Date.now()}`;
+    const exchangeDiv = document.createElement('div');
+    exchangeDiv.className = 'exchange-container';
+    exchangeDiv.id = exchangeId;
+    
+    // Get content preview (first 500 chars)
+    const contentPreview = articleData.content.substring(0, 500) + '...';
+    
+    exchangeDiv.innerHTML = `
+        <div class="exchange-header">
+            <span class="exchange-summary">📰 News Article Loaded: ${displayTitle}</span>
+            <span class="exchange-toggle">▼</span>
+        </div>
+        <div class="exchange-content">
+            <div class="message system">
+                <div class="message-avatar">📰</div>
+                <div class="message-content">
+                    <p><strong>News article loaded and ready for Q&A:</strong></p>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><strong>File:</strong> ${articleData.filename}</li>
+                        <li><strong>Size:</strong> ${articleData.size_kb} KB</li>
+                        <li><strong>Modified:</strong> ${articleData.modified_human}</li>
+                    </ul>
+                    <details style="margin-top: 1rem;">
+                        <summary style="cursor: pointer; color: var(--primary);">View Preview</summary>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-darker); border-radius: 4px; font-size: 0.9em; max-height: 300px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; word-wrap: break-word;">${contentPreview}</pre>
+                        </div>
+                    </details>
+                    <p style="margin-top: 0.75rem; color: var(--success);">
+                        💬 You can now ask questions about this article!
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(exchangeDiv);
+    
+    // Setup toggle
+    const header = exchangeDiv.querySelector('.exchange-header');
+    header.addEventListener('click', () => toggleExchange(exchangeId));
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
