@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRA v3 - My Research Assistant (Notepad Enhanced)</title>
+    <link rel="stylesheet" href="styles_v2.css">
+    <script src="/static/marked.min.js"></script>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon-16x16.png">
+    <link rel="manifest" href="/static/images/site.webmanifest"> 
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div>
+                <h1>My Research Assistant v3 <span class="version-badge">Notepad Enhanced</span></h1>
+                <div class="subtitle">Local LLM + Distortion + RAG: Documents + Web Search + Session History</div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <div class="status-dot" id="ollama-status"></div>
+                    <span>Ollama</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot offline" id="twisted-status"></div>
+                    <span>TwistedPair</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Left Sidebar: Query Box + Search Scope & Settings -->
+        <aside class="sidebar">
+            <!-- Query Box (replaces Quick Search) -->
+            <div class="sidebar-section query-section">
+                <h3>💬 Query</h3>
+                <textarea 
+                    id="query-input" 
+                    class="query-box" 
+                    placeholder="Ask a question or search your documents..."
+                    rows="4"
+                ></textarea>
+                <div class="query-buttons">
+                    <button class="send-btn" id="send-query-btn">Send</button>
+                    <button class="send-btn secondary" id="clear-query-btn" title="Clear query text">
+                        🗑️ Clear
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>📚 Search Scope</h3>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="scope-reference">
+                        <label for="scope-reference">Reference Papers</label>
+                        <span class="count" id="count-reference">823</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="scope-authored">
+                        <label for="scope-authored">My Papers</label>
+                        <span class="count" id="count-authored">7</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="scope-sessions">
+                        <label for="scope-sessions">Past Sessions</label>
+                        <span class="count" id="count-sessions">0</span>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="scope-web-cache">
+                        <label for="scope-web-cache">Web Cache</label>
+                        <span class="count" id="count-web">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
+            <div class="sidebar-section">
+                <h3>📤 Upload Document</h3>
+                <input type="file" id="file-upload-input" accept=".pdf,.txt,.csv,.md,.markdown" style="display: none;">
+                <button class="upload-btn" id="upload-btn">Choose File</button>
+                <div id="upload-status" class="upload-status"></div>
+            </div>
+
+            <!-- News Articles Browser Section -->
+            <div class="sidebar-section">
+                <h3>📰 News Articles</h3>
+                <button class="upload-btn" id="browse-news-btn">Browse Articles</button>
+                <div id="news-articles-status" class="upload-status"></div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>🌐 Web Search</h3>
+                <div class="checkbox-item">
+                    <label for="enable-web-search" style="cursor: pointer;">Enable Web Search</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable-web-search">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>⚙️ LLM Settings</h3>
+                <div class="select-group">
+                    <label for="model-select">Model</label>
+                    <select id="model-select" disabled>
+                        <option value="">Loading models...</option>
+                    </select>
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Temperature
+                        <span id="temp-value">0.7</span>
+                    </label>
+                    <input type="range" id="temperature" min="0" max="5" step="0.1" value="0.7">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Top P
+                        <span id="top-p-value">0.9</span>
+                    </label>
+                    <input type="range" id="top-p" min="0" max="0.98" step="0.01" value="0.9">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Top K
+                        <span id="top-k-gen-value">40</span>
+                    </label>
+                    <input type="range" id="top-k-gen" min="0" max="120" step="1" value="40">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Max Output Tokens
+                        <span id="max-tokens-value">8000</span>
+                    </label>
+                    <input type="range" id="max-tokens" min="500" max="64000" step="500" value="8000">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Context Window
+                        <span id="context-window-value">128000</span>
+                    </label>
+                    <input type="range" id="context-window" min="8000" max="256000" step="1000" value="128000">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        Max Retrieval Results
+                        <span id="top-k-value">20</span>
+                    </label>
+                    <input type="range" id="top-k" min="1" max="50" step="1" value="20">
+                </div>
+            </div>
+
+            <!-- Distortion Panel -->
+            <div class="distortion-panel">
+                <div class="distortion-toggle">
+                    <label style="font-weight: 600;">🎸 Distortion</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="enable-distortion">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="distortion-controls" id="distortion-controls">
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="ensemble-mode">
+                            <span>Ensemble Mode (All 6)</span>
+                        </label>
+                    </div>
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" id="conversation-context" checked>
+                            <span>Include Conversation Context</span>
+                        </label>
+                    </div>
+                    <div class="select-group">
+                        <label>Mode</label>
+                        <select id="distortion-mode">
+                            <option value="invert_er">Inverter</option>
+                            <option value="so_what_er">So-What-er</option>
+                            <option value="echo_er">Echo-er</option>
+                            <option value="what_if_er">What-If-er</option>
+                            <option value="cucumb_er">Cucumber</option>
+                            <option value="archiv_er">Archiver</option>
+                        </select>
+                    </div>
+                    <div class="select-group">
+                        <label>Tone</label>
+                        <select id="distortion-tone">
+                            <option value="neutral">Neutral</option>
+                            <option value="technical">Technical</option>
+                            <option value="primal">Primal</option>
+                            <option value="poetic">Poetic</option>
+                            <option value="satirical">Satirical</option>
+                        </select>
+                    </div>
+                    <div class="slider-group">
+                        <label>
+                            Gain
+                            <span id="gain-value">5</span>
+                        </label>
+                        <input type="range" id="distortion-gain" min="1" max="10" step="1" value="5">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="workspace-area">
+            <!-- Notepad Section (Top) -->
+            <div class="notepad-container" id="notepad-container">
+                <div class="notepad-toolbar">
+                    <div class="toolbar-left">
+                        <button class="toolbar-btn" id="notepad-new" title="New (Ctrl+N)">📄 New</button>
+                        <button class="toolbar-btn" id="notepad-open" title="Open (Ctrl+O)">📂 Open</button>
+                        <button class="toolbar-btn" id="notepad-save" title="Save (Ctrl+S)">💾 Save</button>
+                        <button class="toolbar-btn" id="notepad-close" title="Close">❌ Close</button>
+                    </div>
+                    <div class="toolbar-center">
+                        <span class="filename-display" id="filename-display">Untitled.md</span>
+                        <span class="unsaved-indicator" id="unsaved-indicator" style="display: none;">●</span>
+                    </div>
+                    <div class="toolbar-right">
+                        <span class="char-count" id="char-count">0 chars</span>
+                    </div>
+                </div>
+                <textarea 
+                    id="notepad-editor" 
+                    class="notepad-editor"
+                    placeholder="Start writing your notes here... (Markdown supported)&#10;&#10;Select text and use 'Send Selected' button in the left panel to query it with MRA."
+                ></textarea>
+            </div>
+
+            <!-- Resizable Divider -->
+            <div class="resize-handle" id="resize-handle"></div>
+
+            <!-- Response Area (Bottom) -->
+            <div class="response-container" id="response-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="exchange-container" id="welcome-exchange">
+                        <div class="exchange-header">
+                            <span class="exchange-summary">💬 Welcome Message</span>
+                            <span class="exchange-toggle">▼</span>
+                        </div>
+                        <div class="exchange-content">
+                            <div class="message assistant">
+                                <div class="message-avatar">🤖</div>
+                                <div class="message-content">
+                                    <p>Hello! I'm MRA v3 with <strong>Notepad Enhancement</strong>. I can help you:</p>
+                                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                                        <li>Search across your reference papers and authored papers</li>
+                                        <li>Perform web searches with BRAVE API</li>
+                                        <li>Answer questions using Ollama LLMs</li>
+                                        <li>Apply rhetorical distortion via TwistedPair</li>
+                                        <li><strong>Write and manage markdown notes</strong></li>
+                                        <li><strong>Query selected text from your notes</strong></li>
+                                    </ul>
+                                    <p style="margin-top: 0.75rem;">What would you like to explore?</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel: Sessions -->
+        <aside class="right-panel">
+            <div class="panel-tabs">
+                <div class="panel-tab active" data-tab="sessions">
+                    <span>📋 Sessions</span>
+                    <span class="panel-toggle" id="sessions-toggle">▼</span>
+                </div>
+            </div>
+
+            <!-- Sessions Panel -->
+            <div class="panel-content active" id="sessions-panel">
+                <button class="send-btn" style="width: 100%; margin-bottom: 1rem;" id="new-session-btn">
+                    + New Session
+                </button>
+                <div id="session-list">
+                    <div class="session-item active">
+                        <h4>Current Session</h4>
+                        <div class="meta">Just now • 1 message</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- File Open Modal -->
+    <div id="file-modal" class="modal" style="display: none;">
+        <div class="modal-content file-modal-content">
+            <div class="modal-header">
+                <h2>📂 Open Markdown File</h2>
+                <button class="modal-close" id="file-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="file-loading" class="loading-spinner" style="display: none;">
+                    <p>Loading files...</p>
+                </div>
+                <div id="file-list" class="file-list">
+                    <!-- Files will be loaded here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="file-count-display">0 files</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- News Articles Browser Modal -->
+    <div id="news-modal" class="modal" style="display: none;">
+        <div class="modal-content news-modal-content">
+            <div class="modal-header">
+                <h2>📰 News Articles Browser</h2>
+                <button class="modal-close" id="news-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="news-search-box">
+                    <input type="text" id="news-search-input" placeholder="Filter articles by title..." />
+                </div>
+                <div id="news-loading" class="news-loading" style="display: none;">
+                    <p>Loading articles...</p>
+                </div>
+                <div id="news-articles-list" class="news-articles-list">
+                    <!-- Articles will be loaded here dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="news-count-display">0 articles</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="app_v2.js"></script>
+</body>
+</html>
