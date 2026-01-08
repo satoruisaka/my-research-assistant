@@ -650,6 +650,26 @@ async def health_check():
         # Check TwistedPair
         twistedpair_healthy = twistedpair_client.is_healthy()
         
+        # Check embedder status
+        embedder_loaded = retrieval_manager.is_embedder_loaded()
+        
+        # Check GPU memory if available
+        gpu_memory = {}
+        try:
+            import torch
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                gpu_memory = {
+                    "allocated_gb": round(allocated, 2),
+                    "reserved_gb": round(reserved, 2),
+                    "total_gb": round(total, 2),
+                    "free_gb": round(total - allocated, 2)
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get GPU memory stats: {e}")
+        
         # Get index stats
         index_stats = retrieval_manager.get_index_stats()
         
@@ -663,7 +683,11 @@ async def health_check():
                 },
                 "twistedpair": {
                     "status": "online" if twistedpair_healthy else "offline"
-                }
+                },
+                "embedder": {
+                    "loaded": embedder_loaded
+                },
+                "gpu": gpu_memory
             },
             indices={
                 "reference_papers": index_stats.get('reference_papers', {}),
@@ -681,6 +705,230 @@ async def health_check():
             services={"error": str(e)},
             indices={}
         )
+
+
+# ============================================================================
+# Notepad API Endpoints (for v2 interface)
+# ============================================================================
+
+class NotepadListRequest(BaseModel):
+    """Request for listing notepad files"""
+    pass
+
+
+class NotepadFileInfo(BaseModel):
+    """File information"""
+    filename: str
+    path: str
+    size: int
+    modified: str
+
+
+class NotepadListResponse(BaseModel):
+    """Response for listing files"""
+    files: List[NotepadFileInfo]
+    count: int
+
+
+class NotepadOpenRequest(BaseModel):
+    """Request to open a file"""
+    filename: str
+
+
+class NotepadOpenResponse(BaseModel):
+    """Response with file content"""
+    filename: str
+    content: str
+    success: bool
+    message: str = ""
+
+
+class NotepadSaveRequest(BaseModel):
+    """Request to save a file"""
+    filename: str
+    content: str
+
+
+class NotepadSaveResponse(BaseModel):
+    """Response after saving"""
+    filename: str
+    success: bool
+    message: str
+    path: str = ""
+
+
+@app.post("/api/notepad/list", response_model=NotepadListResponse)
+async def list_notepad_files():
+    """List all markdown files in the notes directory."""
+    try:
+        notes_dir = Path(__file__).parent / "data" / "markdown" / "notes"
+        notes_dir.mkdir(parents=True, exist_ok=True)
+        
+        files = []
+        for filepath in notes_dir.glob("*.md"):
+            if filepath.is_file():
+                stat = filepath.stat()
+                files.append(NotepadFileInfo(
+                    filename=filepath.name,
+                    path=str(filepath.relative_to(Path(__file__).parent)),
+                    size=stat.st_size,
+                    modified=datetime.fromtimestamp(stat.st_mtime).isoformat()
+                ))
+        
+        # Sort by modified time (newest first)
+        files.sort(key=lambda x: x.modified, reverse=True)
+        
+        return NotepadListResponse(files=files, count=len(files))
+        
+    except Exception as e:
+        logger.error(f"Error listing notepad files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/notepad/open", response_model=NotepadOpenResponse)
+async def open_notepad_file(request: NotepadOpenRequest):
+    """Open and read a notepad file."""
+    try:
+        notes_dir = Path(__file__).parent / "data" / "markdown" / "notes"
+        filepath = notes_dir / request.filename
+        
+        # Security: ensure file is within notes directory
+        if not filepath.resolve().is_relative_to(notes_dir.resolve()):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        if not filepath.exists():
+            raise HTTPException(status_code=404, detail=f"File not found: {request.filename}")
+        
+        content = filepath.read_text(encoding='utf-8')
+        
+        return NotepadOpenResponse(
+            filename=request.filename,
+            content=content,
+            success=True,
+            message=f"Opened {request.filename}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error opening notepad file: {e}")
+        return NotepadOpenResponse(
+            filename=request.filename,
+            content="",
+            success=False,
+            message=str(e)
+        )
+
+
+@app.post("/api/notepad/save", response_model=NotepadSaveResponse)
+async def save_notepad_file(request: NotepadSaveRequest):
+    """Save content to a notepad file."""
+    try:
+        notes_dir = Path(__file__).parent / "data" / "markdown" / "notes"
+        notes_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Sanitize filename
+        filename = request.filename.strip()
+        if not filename:
+            raise HTTPException(status_code=400, detail="Filename cannot be empty")
+        
+        # Ensure .md extension
+        if not filename.endswith('.md'):
+            filename += '.md'
+        
+        filepath = notes_dir / filename
+        
+        # Security: ensure file is within notes directory
+        if not filepath.resolve().is_relative_to(notes_dir.resolve()):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Write file
+        filepath.write_text(request.content, encoding='utf-8')
+        
+        return NotepadSaveResponse(
+            filename=filename,
+            success=True,
+            message=f"Saved {filename}",
+            path=str(filepath.relative_to(Path(__file__).parent))
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error saving notepad file: {e}")
+        return NotepadSaveResponse(
+            filename=request.filename,
+            success=False,
+            message=str(e)
+        )
+
+
+@app.post("/api/memory/unload-embedder")
+async def unload_embedder():
+    """
+    Manually unload embedder from GPU to free memory.
+    Useful for debugging or freeing memory for other services.
+    """
+    try:
+        retrieval_manager.unload_embedder()
+        
+        # Get GPU memory after unload
+        gpu_memory = {}
+        try:
+            import torch
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                gpu_memory = {
+                    "allocated_gb": round(allocated, 2),
+                    "reserved_gb": round(reserved, 2)
+                }
+        except:
+            pass
+        
+        return {
+            "status": "success",
+            "message": "Embedder unloaded from GPU",
+            "gpu_memory": gpu_memory,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to unload embedder: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/memory/reload-embedder")
+async def reload_embedder():
+    """
+    Manually reload embedder to GPU.
+    Usually not needed as it auto-loads on first use.
+    """
+    try:
+        retrieval_manager.reload_embedder()
+        
+        # Get GPU memory after reload
+        gpu_memory = {}
+        try:
+            import torch
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                gpu_memory = {
+                    "allocated_gb": round(allocated, 2),
+                    "reserved_gb": round(reserved, 2)
+                }
+        except:
+            pass
+        
+        return {
+            "status": "success",
+            "message": "Embedder reloaded to GPU",
+            "gpu_memory": gpu_memory,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to reload embedder: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
@@ -890,6 +1138,37 @@ async def serve_app_js():
         return FileResponse(str(js_path), media_type="application/javascript")
     else:
         raise HTTPException(status_code=404, detail="app.js not found")
+
+
+# V2 Interface Routes (Notepad-Enhanced)
+@app.get("/v2")
+async def serve_index_v2():
+    """Serve index_v2.html for new notepad interface."""
+    index_path = static_dir / "index_v2.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    else:
+        raise HTTPException(status_code=404, detail="index_v2.html not found")
+
+
+@app.get("/styles_v2.css")
+async def serve_styles_v2():
+    """Serve styles_v2.css."""
+    css_path = static_dir / "styles_v2.css"
+    if css_path.exists():
+        return FileResponse(str(css_path), media_type="text/css")
+    else:
+        raise HTTPException(status_code=404, detail="styles_v2.css not found")
+
+
+@app.get("/app_v2.js")
+async def serve_app_v2_js():
+    """Serve app_v2.js."""
+    js_path = static_dir / "app_v2.js"
+    if js_path.exists():
+        return FileResponse(str(js_path), media_type="application/javascript")
+    else:
+        raise HTTPException(status_code=404, detail="app_v2.js not found")
 
 
 # ============================================================================

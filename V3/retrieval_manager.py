@@ -89,7 +89,8 @@ class RetrievalManager:
             verbose: Enable debug logging
         """
         self.data_dir = Path(data_dir)
-        self.embedder = embedder or Embedder()
+        self._embedder = embedder  # Store provided embedder, or None for lazy init
+        self._embedder_config = None  # Store config if embedder was provided
         self.verbose = verbose
         
         # Use faiss_indices directory (from staged pipeline)
@@ -103,12 +104,41 @@ class RetrievalManager:
         self.indices: Dict[str, FAISSBuilder] = {}
         self.metadata_cache: Dict[str, Dict] = {}  # index_name -> metadata dict
         
-        self._log("RetrievalManager initialized")
+        self._log("RetrievalManager initialized (embedder lazy-loaded)")
     
     def _log(self, message: str):
         """Print log message if verbose."""
         if self.verbose:
             print(f"[RetrievalManager] {message}")
+    
+    @property
+    def embedder(self) -> Embedder:
+        """Lazy-load embedder on first access."""
+        if self._embedder is None:
+            self._log("Loading embedder on first use...")
+            self._embedder = Embedder()
+        return self._embedder
+    
+    def unload_embedder(self) -> None:
+        """
+        Unload embedding model from GPU to free memory.
+        Useful when MRA is running alongside other GPU services (Ollama, TwistedPic).
+        """
+        if self._embedder is not None:
+            self._embedder.unload_from_gpu()
+    
+    def reload_embedder(self) -> None:
+        """
+        Reload embedding model to GPU (automatic on next use).
+        """
+        if self._embedder is not None:
+            self._embedder.reload_to_gpu()
+        else:
+            self._log("Embedder not yet loaded, will load on first use")
+    
+    def is_embedder_loaded(self) -> bool:
+        """Check if embedder is currently loaded in memory."""
+        return self._embedder is not None and hasattr(self._embedder, 'model')
     
     def _load_index(self, index_name: str) -> Optional[FAISSBuilder]:
         """
@@ -297,6 +327,11 @@ class RetrievalManager:
         
         # 1. Generate query embedding
         query_embedding = self.embedder.embed_single(query)
+        
+        # Unload embedder to free GPU memory if configured
+        from config import UNLOAD_EMBEDDER_AFTER_USE
+        if UNLOAD_EMBEDDER_AFTER_USE:
+            self.embedder.unload_from_gpu()
         
         # 2. Search each index in parallel (sequential for now, can parallelize later)
         k_per_index = max(k, 20)  # Get more results per index for better merging

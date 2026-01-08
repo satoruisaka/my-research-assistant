@@ -22,7 +22,8 @@ import requests
 
 from config import (
     NUM_CTX, DEFAULT_MODEL, DEFAULT_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS,
-    DEFAULT_TEMPERATURE, DEFAULT_TOP_P, DEFAULT_TOP_K, DEFAULT_REPEAT_PENALTY
+    DEFAULT_TEMPERATURE, DEFAULT_TOP_P, DEFAULT_TOP_K, DEFAULT_REPEAT_PENALTY,
+    OLLAMA_KEEP_ALIVE
 )
 
 
@@ -354,7 +355,8 @@ class OllamaClient:
         num_ctx: int = NUM_CTX,
         top_p: float = DEFAULT_TOP_P,
         top_k: int = DEFAULT_TOP_K,
-        stream: bool = False
+        stream: bool = False,
+        keep_alive: Optional[str] = None
     ) -> str:
         """
         Multi-turn chat completion (non-streaming).
@@ -368,6 +370,7 @@ class OllamaClient:
             top_p: Top-p (nucleus) sampling
             top_k: Top-k sampling
             stream: Ignored (use chat_stream for streaming)
+            keep_alive: How long to keep model in memory ("0", "5m", etc.)
             
         Returns:
             Assistant response text
@@ -389,7 +392,8 @@ class OllamaClient:
                     'num_ctx': num_ctx,
                     'top_p': top_p,
                     'top_k': top_k
-                }
+                },
+                keep_alive=keep_alive or OLLAMA_KEEP_ALIVE
             )
             
             return response['message']['content']
@@ -406,7 +410,8 @@ class OllamaClient:
         max_tokens: int = DEFAULT_OUTPUT_TOKENS,
         num_ctx: int = NUM_CTX,
         top_p: float = DEFAULT_TOP_P,
-        top_k: int = DEFAULT_TOP_K
+        top_k: int = DEFAULT_TOP_K,
+        keep_alive: Optional[str] = None
     ) -> Generator[str, None, None]:
         """
         Multi-turn chat completion with streaming.
@@ -419,6 +424,7 @@ class OllamaClient:
             num_ctx: Context window size in tokens
             top_p: Top-p (nucleus) sampling
             top_k: Top-k sampling
+            keep_alive: How long to keep model in memory ("0", "5m", etc.)
             
         Yields:
             Token strings as they are generated
@@ -440,7 +446,8 @@ class OllamaClient:
                     'num_ctx': num_ctx,
                     'top_p': top_p,
                     'top_k': top_k
-                }
+                },
+                keep_alive=keep_alive or OLLAMA_KEEP_ALIVE
             )
             
             for chunk in stream:

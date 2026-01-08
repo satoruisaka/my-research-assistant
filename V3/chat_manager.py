@@ -443,6 +443,15 @@ class ChatManager:
             
             self._log(f"Built {len(context_items)} context items from retrieval")
         
+        # Log GPU memory after retrieval (to see embedder unload effect)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                after_retrieval = torch.cuda.memory_allocated() / 1024**3
+                print(f"[ChatManager] 🔍 GPU memory after retrieval: {after_retrieval:.2f}GB")
+        except:
+            pass
+        
         # 2. Web search (if enabled)
         if session.settings.use_web_search:
             self._log("Performing web search...")
@@ -500,6 +509,15 @@ class ChatManager:
         except Exception as e:
             self._log(f"Ollama generation failed: {e}")
             assistant_response = f"Error generating response: {e}"
+        
+        # Log GPU memory after Ollama generation (to see LLM unload effect)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                after_llm = torch.cuda.memory_allocated() / 1024**3
+                print(f"[ChatManager] 🔍 GPU memory after LLM generation: {after_llm:.2f}GB")
+        except:
+            pass
         
         # 5. Apply distortion (if enabled)
         distorted = False
@@ -576,6 +594,15 @@ class ChatManager:
             'ensemble': ensemble_outputs is not None
         })
         
+        # Log GPU memory before cleanup
+        try:
+            import torch
+            if torch.cuda.is_available():
+                before_cleanup = torch.cuda.memory_allocated() / 1024**3
+                self._log(f"GPU memory before cleanup: {before_cleanup:.2f}GB")
+        except:
+            pass
+        
         # Save session
         session.save()
         
@@ -612,6 +639,28 @@ class ChatManager:
         
         session = self.sessions[session_id]
         log_path = session.save()
+        
+        # Clean up GPU memory after session ends
+        self._log("Cleaning up GPU memory after session end...")
+        
+        try:
+            import torch
+            if torch.cuda.is_available():
+                before_embedder_unload = torch.cuda.memory_allocated() / 1024**3
+                self._log(f"GPU memory before embedder unload: {before_embedder_unload:.2f}GB")
+        except:
+            pass
+        
+        self.retrieval.unload_embedder()
+        
+        try:
+            import torch
+            if torch.cuda.is_available():
+                after_embedder_unload = torch.cuda.memory_allocated() / 1024**3
+                self._log(f"GPU memory after embedder unload: {after_embedder_unload:.2f}GB")
+                self._log(f"Embedder freed: {before_embedder_unload - after_embedder_unload:.2f}GB")
+        except:
+            pass
         
         # Remove from active cache
         del self.sessions[session_id]

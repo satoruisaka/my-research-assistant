@@ -35,12 +35,23 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_API_GENERATE = f"{OLLAMA_URL}/api/generate"
 OLLAMA_API_CHAT = f"{OLLAMA_URL}/api/chat"
 
+# NOTE: Ollama keeps LLM models in GPU memory by default (5 minute timeout).
+# This is separate from MRA's embedder. To control Ollama's GPU memory:
+# - Environment variable: OLLAMA_KEEP_ALIVE="0" (unload immediately)
+# - Or set per-request with keep_alive parameter
+# See: https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-keep-a-model-loaded-in-memory
+
+# Ollama keep_alive setting (how long to keep model in GPU after request)
+# "0" = unload immediately, "5m" = 5 minutes (Ollama default), "-1" = keep forever
+# "1" = 1 nanosecond (effectively immediate), "30s" = 30 seconds, "1h" = 1 hour
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "3m")  # Use Ollama default (5 minutes)
+
 # Available LLM models (must be installed: ollama list)
 # AVAILABLE_LLM_MODELS = ["qwen3:latest"]
 
 # === LLM model SETTINGS ===
 # MAX_CHAT_HISTORY_TURNS = 10  # Keep last N turns in context
-DEFAULT_MODEL = "ministral-3:latest"
+DEFAULT_MODEL = "ministral-3:14b"
 NUM_CTX = 128000  # Context window (tokens) - keep this value not too high for low GPU machines
 
 # Default output tokens
@@ -132,6 +143,10 @@ EMBEDDING_MODEL = "BAAI/bge-large-en-v1.5"  # Alternative: more compatible than 
 EMBEDDING_DIM = 1024  # bge-large-en-v1.5 dimension
 EMBEDDING_BATCH_SIZE = 32  # Batch size for embedding generation
 EMBEDDING_DEVICE = "cuda"  # or "cpu"
+
+# GPU Memory Management
+UNLOAD_EMBEDDER_AFTER_USE = True  # Free GPU memory after embedding queries (like TwistedPic)
+GPU_MEMORY_CLEANUP = True  # Run torch.cuda.empty_cache() after operations
 
 # Delta index merge thresholds (for dual-index mode)
 DELTA_MERGE_THRESHOLD = 5000  # Merge when delta has this many vectors
