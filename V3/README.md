@@ -6,6 +6,8 @@
 
 December 5, 2025
 
+January 9, 2026: Featured added - notepad, news articles and local file ingestion
+
 ## Executive Summary
 
 MRA is my personal tool for research, designed as a unified point of interaction to access locally-stored documents and remote web content, perform interactive Q&A with optional rhetorical distortion, and recall and resume sessions from the past. All LLM operations run locally via Ollama and TwistedPair, augmented by RAG (Retrieval-Augmented Generation). The system manages 4 specialized FAISS indices with automatic and manual update strategies.
@@ -13,6 +15,10 @@ MRA is my personal tool for research, designed as a unified point of interaction
 ## System Architecture
 
 ![MRA_v3 Diagram](MRA_v3_diagram.jpg)
+
+---
+
+![MRA_noepad](MRA_notepad.jpg)
 
 ---
 
@@ -93,5 +99,6 @@ cd
 cd ..\MRA_v3
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
+
 
 
