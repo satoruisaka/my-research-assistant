@@ -1171,6 +1171,47 @@ async def serve_app_v2_js():
         raise HTTPException(status_code=404, detail="app_v2.js not found")
 
 
+# Mobile Interface Routes
+@app.get("/m")
+async def serve_index_mobile():
+    """Serve index_m.html for mobile interface."""
+    index_path = static_dir / "index_m.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    else:
+        raise HTTPException(status_code=404, detail="index_m.html not found")
+
+
+@app.get("/mobile")
+async def serve_index_mobile_alt():
+    """Alternative mobile route - redirects to /m."""
+    index_path = static_dir / "index_m.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    else:
+        raise HTTPException(status_code=404, detail="index_m.html not found")
+
+
+@app.get("/styles_m.css")
+async def serve_styles_mobile():
+    """Serve styles_m.css."""
+    css_path = static_dir / "styles_m.css"
+    if css_path.exists():
+        return FileResponse(str(css_path), media_type="text/css")
+    else:
+        raise HTTPException(status_code=404, detail="styles_m.css not found")
+
+
+@app.get("/app_m.js")
+async def serve_app_mobile_js():
+    """Serve app_m.js."""
+    js_path = static_dir / "app_m.js"
+    if js_path.exists():
+        return FileResponse(str(js_path), media_type="application/javascript")
+    else:
+        raise HTTPException(status_code=404, detail="app_m.js not found")
+
+
 # ============================================================================
 # Error Handlers
 # ============================================================================
