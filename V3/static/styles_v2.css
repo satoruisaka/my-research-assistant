@@ -29,10 +29,10 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    font-size: 18px;
+    font-size: 15px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     min-height: 100vh;
-    padding: 1rem;
+    padding: 0.75rem;
     line-height: 1.6;
 }
 
@@ -44,9 +44,9 @@ body {
     border-radius: 16px;
     box-shadow: var(--shadow-lg);
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr) 280px;
+    grid-template-columns: 230px minmax(0, 1fr) 230px;
     grid-template-rows: auto 1fr;
-    min-height: calc(100vh - 2rem);
+    min-height: calc(100vh - 1.5rem);
     max-height: calc(100vh - 2rem);
     overflow: hidden;
 }
@@ -54,7 +54,7 @@ body {
 /* Header */
 header {
     grid-column: 1 / -1;
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1rem;
     border-bottom: 2px solid var(--border);
     background: linear-gradient(90deg, var(--primary), var(--secondary));
     color: white;
@@ -64,20 +64,20 @@ header {
 }
 
 header h1 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 700;
 }
 
 .version-badge {
-    font-size: 0.6rem;
-    padding: 0.2rem 0.4rem;
+    font-size: 0.55rem;
+    padding: 0.15rem 0.35rem;
     background: rgba(255,255,255,0.2);
     border-radius: 4px;
-    margin-left: 0.4rem;
+    margin-left: 0.3rem;
 }
 
 header .subtitle {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     opacity: 0.9;
     margin-top: 0.15rem;
 }
@@ -91,11 +91,11 @@ header .subtitle {
 .status-indicator {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.75rem;
+    gap: 0.3rem;
+    padding: 0.25rem 0.5rem;
     background: rgba(255,255,255,0.2);
-    border-radius: 6px;
-    font-size: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
 }
 
 .status-dot {
@@ -120,34 +120,34 @@ header .subtitle {
 .sidebar {
     grid-column: 1;
     grid-row: 2;
-    padding: 1.5rem;
+    padding: 1rem;
     border-right: 2px solid var(--border);
     overflow-y: auto;
     background: var(--bg-light);
 }
 
 .sidebar-section {
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
 }
 
 /* Query Section - replaces Quick Search */
 .query-section {
     background: white;
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: 8px;
     border: 2px solid var(--primary);
 }
 
 .query-box {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 2px solid var(--border);
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
     font-family: inherit;
     transition: var(--transition);
     resize: vertical;
-    min-height: 80px;
+    min-height: 120px;
 }
 
 .query-box:focus {
@@ -157,19 +157,19 @@ header .subtitle {
 
 .query-buttons {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
 }
 
 .send-btn {
     flex: 1;
-    padding: 0.75rem;
+    padding: 0.35rem 0.4rem;
     background: var(--primary);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 4px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: var(--transition);
     white-space: nowrap;
@@ -177,7 +177,7 @@ header .subtitle {
 
 .send-btn:hover:not(:disabled) {
     background: var(--primary-dark);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .send-btn:disabled {
@@ -187,8 +187,8 @@ header .subtitle {
 
 .send-btn.secondary {
     background: var(--secondary);
-    font-size: 0.85rem;
-    padding: 0.75rem 0.5rem;
+    font-size: 0.7rem;
+    padding: 0.35rem 0.3rem;
 }
 
 .send-btn.secondary:hover:not(:disabled) {
@@ -197,12 +197,12 @@ header .subtitle {
 
 .upload-btn {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.5rem;
     background: var(--secondary);
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
@@ -225,19 +225,19 @@ header .subtitle {
 }
 
 .sidebar-section h3 {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-light);
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 /* Checkbox Groups */
 .checkbox-group {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .checkbox-item {
@@ -247,15 +247,15 @@ header .subtitle {
 }
 
 .checkbox-item input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: var(--primary);
 }
 
 .checkbox-item label {
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--text-dark);
     flex: 1;
 }
@@ -430,7 +430,7 @@ input:checked + .toggle-slider:before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
     background: var(--bg-dark);
     color: white;
     border-bottom: 1px solid var(--border);
@@ -445,12 +445,12 @@ input:checked + .toggle-slider:before {
 }
 
 .toolbar-btn {
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     background: rgba(255,255,255,0.1);
     color: white;
     border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 6px;
-    font-size: 0.85rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: var(--transition);
     white-space: nowrap;
@@ -467,27 +467,27 @@ input:checked + .toggle-slider:before {
 
 .filename-display {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .unsaved-indicator {
     color: var(--warning);
-    font-size: 1.2rem;
-    margin-left: 0.5rem;
+    font-size: 1.1rem;
+    margin-left: 0.4rem;
 }
 
 .char-count {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: rgba(255,255,255,0.8);
 }
 
 .notepad-editor {
     flex: 1;
-    padding: 1.5rem;
+    padding: 1rem;
     border: none;
     font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
-    font-size: 0.95rem;
-    line-height: 1.8;
+    font-size: 0.9rem;
+    line-height: 1.7;
     resize: none;
     background: #fafafa;
     color: var(--text-dark);
@@ -543,10 +543,10 @@ input:checked + .toggle-slider:before {
     flex: 1;
     overflow-y: auto;
     overflow-x: auto;
-    padding: 1rem;
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -1002,7 +1002,7 @@ input:checked + .toggle-slider:before {
 .right-panel {
     grid-column: 3;
     grid-row: 2;
-    padding: 1.5rem;
+    padding: 1rem;
     border-left: 2px solid var(--border);
     overflow-y: auto;
     background: var(--bg-light);
@@ -1010,21 +1010,21 @@ input:checked + .toggle-slider:before {
 
 .panel-tabs {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
 }
 
 .panel-tab {
     flex: 1;
-    padding: 0.75rem;
+    padding: 0.5rem;
     background: white;
     border: 2px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
     text-align: center;
     transition: var(--transition);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     display: flex;
     justify-content: space-between;
     align-items: center;

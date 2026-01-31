@@ -169,6 +169,10 @@ class Embedder:
         if not texts:
             return np.array([]).reshape(0, self.embedding_dim)
         
+        # Auto-reload if model was unloaded
+        if not hasattr(self, 'model'):
+            self.reload_to_gpu()
+        
         batch_size = batch_size or self.batch_size
         
         try:
@@ -219,6 +223,10 @@ class Embedder:
         """
         batch_size = batch_size or self.batch_size
         batch = []
+        
+        # Auto-reload if model was unloaded
+        if not hasattr(self, 'model'):
+            self.reload_to_gpu()
         
         try:
             iterator = tqdm(text_iterator, desc="Embedding") if show_progress else text_iterator
@@ -275,6 +283,10 @@ class Embedder:
         Returns:
             np.ndarray of shape (embedding_dim,)
         """
+        # Auto-reload if model was unloaded
+        if not hasattr(self, 'model'):
+            self.reload_to_gpu()
+        
         try:
             embedding = self.model.encode(
                 text,
@@ -369,6 +381,60 @@ class Embedder:
     def dimension(self) -> int:
         """Get embedding dimension."""
         return self.embedding_dim
+    
+    def unload_from_gpu(self) -> None:
+        """
+        Unload embedding model from GPU to free GPU memory.
+        
+        This completely frees GPU memory but requires reloading for next use.
+        Model configuration is preserved for reloading.
+        """
+        if self.device == "cuda" and hasattr(self, 'model'):
+            import gc
+            
+            # Store config for reloading
+            if not hasattr(self, '_model_config'):
+                self._model_config = {
+                    'model_name': self.model_name,
+                    'batch_size': self.batch_size,
+                    'cache_dir': self.cache_dir,
+                    'embedding_dim': self.embedding_dim
+                }
+            
+            # Delete model components
+            del self.model
+            
+            # Aggressive GPU cleanup
+            torch.cuda.empty_cache()
+            gc.collect()
+            torch.cuda.empty_cache()
+            
+            print(f"[Embedder] Model unloaded from GPU")
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                print(f"[Embedder] GPU memory: {allocated:.2f}GB allocated")
+    
+    def reload_to_gpu(self) -> None:
+        """
+        Reload embedding model to GPU after unloading.
+        """
+        if not hasattr(self, 'model'):
+            if not hasattr(self, '_model_config'):
+                raise RuntimeError("Cannot reload model: no saved configuration")
+            
+            print(f"[Embedder] Reloading model to GPU...")
+            
+            # Reload with SentenceTransformer
+            self.model = SentenceTransformer(
+                self.model_name,
+                device=self.device,
+                cache_folder=str(self.cache_dir)
+            )
+            
+            print(f"[Embedder] Model reloaded to GPU")
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                print(f"[Embedder] GPU memory: {allocated:.2f}GB allocated")
     
     def __repr__(self) -> str:
         return (

@@ -1,4 +1,4 @@
-// app_v2.js - MRA v3 Frontend Logic with Notepad Enhancement
+// app.js - MRA v3 Frontend Logic
 
 // State Management
 const state = {
@@ -6,23 +6,14 @@ const state = {
     messages: [],
     context: [],
     uploadedDocuments: [],  // Store uploaded document content
-    notepad: {
-        currentFile: 'Untitled.md',
-        content: '',
-        unsavedChanges: false,
-        splitRatio: 0.6  // 60% notepad, 40% response
-    },
     settings: {
-        model: 'ministral-3:14b',
+        model: 'ministral-3:8b',
         temperature: 0.7,
-        topP: 0.9,
-        topKGen: 40,
-        maxTokens: 32000,
-        contextWindow: 128000,
+        maxTokens: 128000,
         topK: 20,
         searchScope: {
-            referencePapers: false,
-            myPapers: false,
+            referencePapers: true,
+            myPapers: true,
             sessions: false,
             webCache: false
         },
@@ -59,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeEventListeners();
     checkServiceStatus();
     loadSessions();
-    initializeNotepad();
     
     // Setup welcome exchange toggle
     const welcomeHeader = document.querySelector('#welcome-exchange .exchange-header');
@@ -67,39 +57,43 @@ document.addEventListener('DOMContentLoaded', () => {
         welcomeHeader.addEventListener('click', () => toggleExchange('welcome-exchange'));
     }
     
-    // Load saved split ratio from localStorage
-    const savedRatio = localStorage.getItem('notepadSplitRatio');
-    if (savedRatio) {
-        state.notepad.splitRatio = parseFloat(savedRatio);
-        applySplitRatio(state.notepad.splitRatio);
-    }
+    // Auto-resize textarea
+    const textarea = document.getElementById('user-input');
+    textarea.addEventListener('input', () => {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    });
 });
 
 // Event Listeners
 function initializeEventListeners() {
-    // Query box (replaces quick search)
-    const sendQueryBtn = document.getElementById('send-query-btn');
-    const queryInput = document.getElementById('query-input');
-    const clearQueryBtn = document.getElementById('clear-query-btn');
+    // Quick search
+    const quickSearchBtn = document.getElementById('quick-search-btn');
+    const quickSearchInput = document.getElementById('quick-search');
     
-    sendQueryBtn.addEventListener('click', () => {
-        const query = queryInput.value.trim();
+    quickSearchBtn.addEventListener('click', () => {
+        const query = quickSearchInput.value.trim();
         if (query) {
-            sendMessage(query);
+            document.getElementById('user-input').value = query;
+            sendMessage();
+            quickSearchInput.value = '';
         }
     });
     
-    queryInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
+    quickSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendQueryBtn.click();
+            quickSearchBtn.click();
         }
     });
     
-    // Clear query box
-    clearQueryBtn.addEventListener('click', () => {
-        queryInput.value = '';
-        queryInput.focus();
+    // Send message
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('user-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
     });
     
     // Settings - Model
@@ -113,24 +107,9 @@ function initializeEventListeners() {
         document.getElementById('temp-value').textContent = e.target.value;
     });
     
-    document.getElementById('top-p').addEventListener('input', (e) => {
-        state.settings.topP = parseFloat(e.target.value);
-        document.getElementById('top-p-value').textContent = e.target.value;
-    });
-    
-    document.getElementById('top-k-gen').addEventListener('input', (e) => {
-        state.settings.topKGen = parseInt(e.target.value);
-        document.getElementById('top-k-gen-value').textContent = e.target.value;
-    });
-    
     document.getElementById('max-tokens').addEventListener('input', (e) => {
         state.settings.maxTokens = parseInt(e.target.value);
         document.getElementById('max-tokens-value').textContent = e.target.value;
-    });
-    
-    document.getElementById('context-window').addEventListener('input', (e) => {
-        state.settings.contextWindow = parseInt(e.target.value);
-        document.getElementById('context-window-value').textContent = e.target.value;
     });
     
     document.getElementById('top-k').addEventListener('input', (e) => {
@@ -197,33 +176,12 @@ function initializeEventListeners() {
     // New session
     document.getElementById('new-session-btn').addEventListener('click', createNewSession);
     
-    // Sessions panel toggle
-    document.getElementById('sessions-toggle').addEventListener('click', (e) => {
-        e.stopPropagation();
-        const panel = document.getElementById('sessions-panel');
-        const toggle = document.getElementById('sessions-toggle');
-        panel.classList.toggle('collapsed');
-        toggle.textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
-    });
-    
     // File upload
     document.getElementById('upload-btn').addEventListener('click', () => {
         document.getElementById('file-upload-input').click();
     });
     
     document.getElementById('file-upload-input').addEventListener('change', handleFileUpload);
-    
-    // News articles browser
-    document.getElementById('browse-news-btn').addEventListener('click', openNewsArticlesBrowser);
-    document.getElementById('news-modal-close').addEventListener('click', closeNewsArticlesBrowser);
-    document.getElementById('news-search-input').addEventListener('input', filterNewsArticles);
-    
-    // Close modal when clicking outside
-    document.getElementById('news-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'news-modal') {
-            closeNewsArticlesBrowser();
-        }
-    });
 }
 
 // Switch panel tabs
@@ -434,19 +392,18 @@ function addUploadedDocToChat(uploadData) {
 }
 
 // Send message
-async function sendMessage(queryText = null) {
-    const textarea = document.getElementById('query-input');
-    const message = queryText || textarea.value.trim();
+async function sendMessage() {
+    const textarea = document.getElementById('user-input');
+    const message = textarea.value.trim();
     
     if (!message) return;
     
     // Clear input
-    if (!queryText) {
-        textarea.value = '';
-    }
+    textarea.value = '';
+    textarea.style.height = 'auto';
     
     // Disable send button
-    const sendBtn = document.getElementById('send-query-btn');
+    const sendBtn = document.getElementById('send-btn');
     sendBtn.disabled = true;
     
     // Collapse all previous exchanges before adding new one
@@ -481,10 +438,7 @@ async function sendMessage(queryText = null) {
             },
             model: state.settings.model,
             temperature: state.settings.temperature,
-            top_p: state.settings.topP,
-            top_k: state.settings.topKGen,
             max_tokens: state.settings.maxTokens,
-            num_ctx: state.settings.contextWindow,
             top_k_retrieval: state.settings.topK,
             distortion_mode: state.settings.distortion.mode,
             distortion_tone: state.settings.distortion.tone,
@@ -572,8 +526,7 @@ async function sendMessage(queryText = null) {
         removeMessage(streamingId);
         addMessage('assistant', `❌ Error: ${error.message}`, true);
     } finally {
-        const sendBtn = document.getElementById('send-query-btn');
-        if (sendBtn) sendBtn.disabled = false;
+        sendBtn.disabled = false;
     }
 }
 
@@ -1181,640 +1134,3 @@ function timeAgo(date) {
     
     return 'Just now';
 }
-
-// ============================================================================
-// News Articles Browser
-// ============================================================================
-
-let allNewsArticles = [];  // Store all articles for filtering
-
-// Open news articles browser modal
-async function openNewsArticlesBrowser() {
-    const modal = document.getElementById('news-modal');
-    const loadingDiv = document.getElementById('news-loading');
-    const listDiv = document.getElementById('news-articles-list');
-    const statusDiv = document.getElementById('news-articles-status');
-    
-    // Show modal
-    modal.style.display = 'flex';
-    loadingDiv.style.display = 'block';
-    listDiv.innerHTML = '';
-    
-    try {
-        // Fetch news articles list from API
-        const response = await fetch(`${API_BASE}/api/news-articles/list`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch news articles');
-        }
-        
-        const data = await response.json();
-        allNewsArticles = data.files || [];
-        
-        loadingDiv.style.display = 'none';
-        
-        if (allNewsArticles.length === 0) {
-            listDiv.innerHTML = '<p class="no-articles">No news articles found.</p>';
-            document.getElementById('news-count-display').textContent = '0 articles';
-            return;
-        }
-        
-        // Display articles
-        displayNewsArticles(allNewsArticles);
-        document.getElementById('news-count-display').textContent = `${allNewsArticles.length} article(s)`;
-        
-    } catch (error) {
-        console.error('Failed to load news articles:', error);
-        loadingDiv.style.display = 'none';
-        listDiv.innerHTML = `<p class="error-message">❌ Error: ${error.message}</p>`;
-    }
-}
-
-// Close news articles browser modal
-function closeNewsArticlesBrowser() {
-    const modal = document.getElementById('news-modal');
-    modal.style.display = 'none';
-    document.getElementById('news-search-input').value = '';
-}
-
-// Display news articles in the list
-function displayNewsArticles(articles) {
-    const listDiv = document.getElementById('news-articles-list');
-    
-    if (articles.length === 0) {
-        listDiv.innerHTML = '<p class="no-articles">No articles match your filter.</p>';
-        return;
-    }
-    
-    listDiv.innerHTML = articles.map(article => {
-        // Parse filename to extract title (remove timestamp prefix)
-        const titleMatch = article.filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
-        const displayTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ') : article.filename;
-        
-        return `
-            <div class="news-article-item" data-filename="${article.filename}">
-                <div class="news-article-header">
-                    <h4 class="news-article-title">${displayTitle}</h4>
-                    <span class="news-article-date">${article.modified_human}</span>
-                </div>
-                <div class="news-article-meta">
-                    <span class="news-article-size">${article.size_kb} KB</span>
-                    <button class="news-article-btn" onclick="loadNewsArticle('${article.filename}')">
-                        📖 Load to Context
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Filter news articles by search term
-function filterNewsArticles(event) {
-    const searchTerm = event.target.value.toLowerCase();
-    
-    if (searchTerm === '') {
-        displayNewsArticles(allNewsArticles);
-        document.getElementById('news-count-display').textContent = `${allNewsArticles.length} article(s)`;
-        return;
-    }
-    
-    const filtered = allNewsArticles.filter(article => 
-        article.filename.toLowerCase().includes(searchTerm)
-    );
-    
-    displayNewsArticles(filtered);
-    document.getElementById('news-count-display').textContent = `${filtered.length} of ${allNewsArticles.length} article(s)`;
-}
-
-// Load a specific news article to context
-async function loadNewsArticle(filename) {
-    const statusDiv = document.getElementById('news-articles-status');
-    
-    try {
-        statusDiv.innerHTML = `<span style="color: var(--info);">⏳ Loading ${filename}...</span>`;
-        
-        // Fetch article content
-        const response = await fetch(`${API_BASE}/api/news-articles/read/${encodeURIComponent(filename)}`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to load article');
-        }
-        
-        const data = await response.json();
-        
-        // Store in uploaded documents state (reuse existing infrastructure)
-        state.uploadedDocuments.push({
-            filename: data.filename,
-            content: data.content,
-            token_count: Math.ceil(data.content.length / 4), // Rough estimate
-            uploaded_at: new Date().toISOString(),
-            source: 'news_articles'
-        });
-        
-        console.log('News article loaded to context:', data.filename);
-        
-        // Close modal
-        closeNewsArticlesBrowser();
-        
-        // Show success in sidebar
-        statusDiv.innerHTML = `<span style="color: var(--success);">✅ Loaded: ${filename}</span>`;
-        
-        // Add to chat as system message
-        addNewsArticleToChat(data);
-        
-        // Clear status after 3 seconds
-        setTimeout(() => {
-            statusDiv.innerHTML = '';
-        }, 3000);
-        
-    } catch (error) {
-        console.error('Failed to load article:', error);
-        statusDiv.innerHTML = `<span style="color: var(--danger);">❌ ${error.message}</span>`;
-    }
-}
-
-// Add news article to chat as system message
-function addNewsArticleToChat(articleData) {
-    const chatMessages = document.getElementById('chat-messages');
-    
-    // Parse title from filename
-    const titleMatch = articleData.filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
-    const displayTitle = titleMatch ? titleMatch[1].replace(/_/g, ' ') : articleData.filename;
-    
-    // Create new exchange container
-    const exchangeId = `exchange-news-${Date.now()}`;
-    const exchangeDiv = document.createElement('div');
-    exchangeDiv.className = 'exchange-container';
-    exchangeDiv.id = exchangeId;
-    
-    // Get content preview (first 500 chars)
-    const contentPreview = articleData.content.substring(0, 500) + '...';
-    
-    exchangeDiv.innerHTML = `
-        <div class="exchange-header">
-            <span class="exchange-summary">📰 News Article Loaded: ${displayTitle}</span>
-            <span class="exchange-toggle">▼</span>
-        </div>
-        <div class="exchange-content">
-            <div class="message system">
-                <div class="message-avatar">📰</div>
-                <div class="message-content">
-                    <p><strong>News article loaded and ready for Q&A:</strong></p>
-                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                        <li><strong>File:</strong> ${articleData.filename}</li>
-                        <li><strong>Size:</strong> ${articleData.size_kb} KB</li>
-                        <li><strong>Modified:</strong> ${articleData.modified_human}</li>
-                    </ul>
-                    <details style="margin-top: 1rem;">
-                        <summary style="cursor: pointer; color: var(--primary);">View Preview</summary>
-                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-darker); border-radius: 4px; font-size: 0.9em; max-height: 300px; overflow-y: auto;">
-                            <pre style="white-space: pre-wrap; word-wrap: break-word;">${contentPreview}</pre>
-                        </div>
-                    </details>
-                    <p style="margin-top: 0.75rem; color: var(--success);">
-                        💬 You can now ask questions about this article!
-                    </p>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    chatMessages.appendChild(exchangeDiv);
-    
-    // Setup toggle
-    const header = exchangeDiv.querySelector('.exchange-header');
-    header.addEventListener('click', () => toggleExchange(exchangeId));
-    
-    // Scroll to bottom
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// ============================================================================
-// NOTEPAD FUNCTIONALITY
-// ============================================================================
-
-// Initialize notepad
-function initializeNotepad() {
-    const editor = document.getElementById('notepad-editor');
-    const resizeHandle = document.getElementById('resize-handle');
-    
-    // Notepad event listeners
-    document.getElementById('notepad-new').addEventListener('click', newNotepad);
-    document.getElementById('notepad-open').addEventListener('click', openNotepad);
-    document.getElementById('notepad-save').addEventListener('click', saveNotepad);
-    document.getElementById('notepad-download').addEventListener('click', downloadNotepad);
-    document.getElementById('notepad-close').addEventListener('click', closeNotepad);
-    
-    // Track content changes
-    editor.addEventListener('input', handleNotepadInput);
-    
-    // Character count
-    editor.addEventListener('input', updateCharCount);
-    updateCharCount();
-    
-    // Keyboard shortcuts
-    document.addEventListener('keydown', handleNotepadShortcuts);
-    
-    // Resizable divider
-    initializeResizableDivider(resizeHandle);
-    
-    // Warn before closing with unsaved changes
-    window.addEventListener('beforeunload', (e) => {
-        if (state.notepad.unsavedChanges) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
-}
-
-// Handle notepad input
-function handleNotepadInput() {
-    const editor = document.getElementById('notepad-editor');
-    state.notepad.content = editor.value;
-    
-    if (!state.notepad.unsavedChanges) {
-        state.notepad.unsavedChanges = true;
-        updateUnsavedIndicator();
-    }
-}
-
-// Update character count
-function updateCharCount() {
-    const editor = document.getElementById('notepad-editor');
-    const charCount = document.getElementById('char-count');
-    const count = editor.value.length;
-    charCount.textContent = `${count.toLocaleString()} chars`;
-}
-
-// Update unsaved indicator
-function updateUnsavedIndicator() {
-    const indicator = document.getElementById('unsaved-indicator');
-    indicator.style.display = state.notepad.unsavedChanges ? 'inline' : 'none';
-}
-
-// Update filename display
-function updateFilenameDisplay() {
-    const display = document.getElementById('filename-display');
-    display.textContent = state.notepad.currentFile;
-}
-
-// New notepad
-async function newNotepad() {
-    if (state.notepad.unsavedChanges) {
-        if (!confirm('You have unsaved changes. Create a new file?')) {
-            return;
-        }
-    }
-    
-    state.notepad.currentFile = 'Untitled.md';
-    state.notepad.content = '';
-    state.notepad.unsavedChanges = false;
-    
-    document.getElementById('notepad-editor').value = '';
-    updateFilenameDisplay();
-    updateUnsavedIndicator();
-    updateCharCount();
-}
-
-// Open notepad file
-async function openNotepad() {
-    try {
-        // Fetch file list
-        const response = await fetch(`${API_BASE}/api/notepad/list`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.count === 0) {
-            alert('No markdown files found. Create a new file and save it first.');
-            return;
-        }
-        
-        // Show file picker modal
-        showFilePickerModal(data.files);
-        
-    } catch (error) {
-        console.error('Error listing files:', error);
-        alert('Failed to list files: ' + error.message);
-    }
-}
-
-// Show file picker modal
-function showFilePickerModal(files) {
-    const modal = document.getElementById('file-modal');
-    const fileList = document.getElementById('file-list');
-    const countDisplay = document.getElementById('file-count-display');
-    
-    // Build file list
-    fileList.innerHTML = files.map(file => `
-        <div class="file-item" data-filename="${file.filename}">
-            <div class="file-info">
-                <div class="file-name">📄 ${file.filename}</div>
-                <div class="file-meta">
-                    ${formatFileSize(file.size)} • 
-                    ${formatDate(file.modified)}
-                </div>
-            </div>
-        </div>
-    `).join('');
-    
-    // Add click handlers
-    fileList.querySelectorAll('.file-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const filename = item.dataset.filename;
-            loadNotepadFile(filename);
-            closeFilePickerModal();
-        });
-    });
-    
-    countDisplay.textContent = `${files.length} file${files.length === 1 ? '' : 's'}`;
-    modal.style.display = 'flex';
-    
-    // Close button
-    document.getElementById('file-modal-close').onclick = closeFilePickerModal;
-    modal.onclick = (e) => {
-        if (e.target === modal) closeFilePickerModal();
-    };
-}
-
-// Close file picker modal
-function closeFilePickerModal() {
-    document.getElementById('file-modal').style.display = 'none';
-}
-
-// Load notepad file
-async function loadNotepadFile(filename) {
-    try {
-        const response = await fetch(`${API_BASE}/api/notepad/open`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            state.notepad.currentFile = filename;
-            state.notepad.content = data.content;
-            state.notepad.unsavedChanges = false;
-            
-            document.getElementById('notepad-editor').value = data.content;
-            updateFilenameDisplay();
-            updateUnsavedIndicator();
-            updateCharCount();
-        } else {
-            alert('Failed to open file: ' + data.message);
-        }
-        
-    } catch (error) {
-        console.error('Error opening file:', error);
-        alert('Failed to open file: ' + error.message);
-    }
-}
-
-// Save notepad
-async function saveNotepad() {
-    const editor = document.getElementById('notepad-editor');
-    let filename = state.notepad.currentFile;
-    
-    // If untitled, ask for filename
-    if (filename === 'Untitled.md') {
-        filename = prompt('Enter filename (without .md extension):', 'notes');
-        if (!filename) return;
-        if (!filename.endsWith('.md')) {
-            filename += '.md';
-        }
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE}/api/notepad/save`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                filename: filename,
-                content: editor.value
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            state.notepad.currentFile = data.filename;
-            state.notepad.unsavedChanges = false;
-            updateFilenameDisplay();
-            updateUnsavedIndicator();
-            
-            // Show success message briefly
-            const saveBtn = document.getElementById('notepad-save');
-            const originalText = saveBtn.textContent;
-            saveBtn.textContent = '✅ Saved!';
-            saveBtn.style.background = 'var(--success)';
-            setTimeout(() => {
-                saveBtn.textContent = originalText;
-                saveBtn.style.background = '';
-            }, 2000);
-        } else {
-            alert('Failed to save file: ' + data.message);
-        }
-        
-    } catch (error) {
-        console.error('Error saving file:', error);
-        alert('Failed to save file: ' + error.message);
-    }
-}
-
-// Close notepad
-async function closeNotepad() {
-    if (state.notepad.unsavedChanges) {
-        if (!confirm('You have unsaved changes. Close without saving?')) {
-            return;
-        }
-    }
-    
-    newNotepad();
-}
-
-// Download notepad to local file
-function downloadNotepad() {
-    const editor = document.getElementById('notepad-editor');
-    let filename = state.notepad.currentFile;
-    
-    // If untitled, ask for filename
-    if (filename === 'Untitled.md') {
-        filename = prompt('Enter filename (without .md extension):', 'notes');
-        if (!filename) return;
-        if (!filename.endsWith('.md')) {
-            filename += '.md';
-        }
-    }
-    
-    // Create blob and download link
-    const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    // Show success message briefly
-    const downloadBtn = document.getElementById('notepad-download');
-    const originalText = downloadBtn.textContent;
-    downloadBtn.textContent = '✅ Downloaded!';
-    downloadBtn.style.background = 'var(--success)';
-    setTimeout(() => {
-        downloadBtn.textContent = originalText;
-        downloadBtn.style.background = '';
-    }, 2000);
-}
-
-// Send selected text from notepad
-function sendSelectedText() {
-    const editor = document.getElementById('notepad-editor');
-    const selectedText = editor.value.substring(editor.selectionStart, editor.selectionEnd).trim();
-    
-    if (!selectedText) {
-        alert('Please select some text in the notepad first.');
-        return;
-    }
-    
-    // Put selected text in query box
-    const queryInput = document.getElementById('query-input');
-    queryInput.value = selectedText;
-    
-    // Optionally send immediately (or let user review first)
-    if (confirm('Send selected text as query?')) {
-        sendMessage(selectedText);
-    }
-}
-
-// Handle keyboard shortcuts
-function handleNotepadShortcuts(e) {
-    // Ctrl+Shift+S: Download
-    if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        downloadNotepad();
-        return;
-    }
-    
-    // Ctrl+S: Save
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        saveNotepad();
-    }
-    
-    // Ctrl+N: New
-    if (e.ctrlKey && e.key === 'n') {
-        e.preventDefault();
-        newNotepad();
-    }
-    
-    // Ctrl+O: Open
-    if (e.ctrlKey && e.key === 'o') {
-        e.preventDefault();
-        openNotepad();
-    }
-}
-
-// Initialize resizable divider
-function initializeResizableDivider(handle) {
-    let isResizing = false;
-    let startY = 0;
-    let startHeightTop = 0;
-    let startHeightBottom = 0;
-    
-    handle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startY = e.clientY;
-        
-        const notepadContainer = document.getElementById('notepad-container');
-        const responseContainer = document.getElementById('response-container');
-        
-        startHeightTop = notepadContainer.offsetHeight;
-        startHeightBottom = responseContainer.offsetHeight;
-        
-        handle.classList.add('dragging');
-        document.body.style.cursor = 'row-resize';
-        document.body.style.userSelect = 'none';
-        
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        const deltaY = e.clientY - startY;
-        const workspaceArea = document.querySelector('.workspace-area');
-        const totalHeight = workspaceArea.offsetHeight - 6; // minus handle height
-        
-        let newTopHeight = startHeightTop + deltaY;
-        let newBottomHeight = startHeightBottom - deltaY;
-        
-        // Enforce minimum heights
-        const minHeight = 200;
-        if (newTopHeight < minHeight) {
-            newTopHeight = minHeight;
-            newBottomHeight = totalHeight - minHeight;
-        } else if (newBottomHeight < minHeight) {
-            newBottomHeight = minHeight;
-            newTopHeight = totalHeight - minHeight;
-        }
-        
-        // Calculate ratio
-        const ratio = newTopHeight / totalHeight;
-        state.notepad.splitRatio = ratio;
-        
-        // Apply split
-        applySplitRatio(ratio);
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            handle.classList.remove('dragging');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            
-            // Save to localStorage
-            localStorage.setItem('notepadSplitRatio', state.notepad.splitRatio);
-        }
-    });
-}
-
-// Apply split ratio
-function applySplitRatio(ratio) {
-    const notepadContainer = document.getElementById('notepad-container');
-    const responseContainer = document.getElementById('response-container');
-    
-    notepadContainer.style.flex = `${ratio}`;
-    responseContainer.style.flex = `${1 - ratio}`;
-}
-
-// Helper: Format file size
-function formatFileSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-// Helper: Format date
-function formatDate(isoString) {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString();
-}
-
